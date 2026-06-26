@@ -1,20 +1,13 @@
-﻿import { Module } from '@nestjs/common';
-import { RealtimeGateway } from './realtime.gateway';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Module } from '@nestjs/common';
+import { GameGateway } from './gateways/game.gateway';
+import { GameModule } from '../game/game.module';
+import { MatchmakingModule } from '../matchmaking/matchmaking.module';
+import { AchievementsModule } from '../achievements/achievements.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '15m' },
-      }),
-    }),
-  ],
-  providers: [RealtimeGateway],
-  exports: [RealtimeGateway],
+  imports: [GameModule, MatchmakingModule, AchievementsModule, NotificationsModule, AuthModule],
+  providers: [GameGateway],
 })
 export class RealtimeModule {}

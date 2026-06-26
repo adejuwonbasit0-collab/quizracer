@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -36,5 +36,3 @@ export class LeaderboardService {
     return { entries, total, page, limit, totalPages: Math.ceil(total/limit) };
   }
 }
-
-

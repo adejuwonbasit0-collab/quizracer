@@ -1,6 +1,6 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { RedisService, TTL } from '../redis/redis.service';
-import { KeystrokeRecord } from '../auth/types';
+import { KeystrokeRecord } from '@quizracer/shared-types';
 
 export interface AntiCheatResult {
   isValid: boolean;
@@ -12,7 +12,7 @@ const MAX_HUMAN_WPM      = 250;   // Absolute physical limit
 const MIN_RACE_DURATION  = 5_000; // 5 seconds minimum
 const MIN_CHARS_PER_WPM  = 4.5;   // avg word length in chars
 const MAX_BURST_RATIO    = 3.0;   // max WPM burst vs average
-const MAX_KEYSTROKES_GAP = 2_000; // 2 seconds â€” suspicious gap in keystrokes
+const MAX_KEYSTROKES_GAP = 2_000; // 2 seconds — suspicious gap in keystrokes
 
 @Injectable()
 export class AntiCheatService {
@@ -20,9 +20,9 @@ export class AntiCheatService {
 
   constructor(private readonly redis: RedisService) {}
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
   // VALIDATE A FINISHED RACE
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
 
   validateTypingFinish(params: {
     userId:    string;
@@ -56,7 +56,7 @@ export class AntiCheatService {
     const expectedWpm = this.computeExpectedWpm(textLength, durationMs);
     const wpmDelta    = Math.abs(wpm - expectedWpm);
     if (wpmDelta > 80) {
-      // Large discrepancy â€” use server-computed value instead
+      // Large discrepancy — use server-computed value instead
       this.logger.warn(`WPM mismatch user=${userId} reported=${wpm} expected=${expectedWpm.toFixed(1)}`);
       return { isValid: true, adjustedWpm: Math.round(expectedWpm) };
     }
@@ -73,9 +73,9 @@ export class AntiCheatService {
     return { isValid: true };
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
   // VALIDATE LIVE PROGRESS UPDATE
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
 
   async validateProgressUpdate(
     userId:   string,
@@ -114,9 +114,9 @@ export class AntiCheatService {
     return { isValid: true };
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
   // QUIZ ANTI-CHEAT: submission timing
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
 
   validateQuizAnswer(timeMs: number, timePerRoundMs: number): AntiCheatResult {
     // Answer before question was shown
@@ -125,7 +125,7 @@ export class AntiCheatService {
     }
     // Tiny reaction time (< 200ms) is inhuman
     if (timeMs < 200) {
-      return { isValid: false, reason: 'Answer too fast â€” possible automation' };
+      return { isValid: false, reason: 'Answer too fast — possible automation' };
     }
     // Answer after time expired
     if (timeMs > timePerRoundMs + 2_000) { // 2s grace period
@@ -134,9 +134,9 @@ export class AntiCheatService {
     return { isValid: true };
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
   // HELPERS
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
 
   private computeExpectedWpm(textLength: number, durationMs: number): number {
     const chars   = textLength;
@@ -179,7 +179,7 @@ export class AntiCheatService {
     data:    Record<string, unknown> = {},
   ): void {
     const key = `anticheat:flags:${userId}`;
-    // Atomic increment â€” avoids lost-update race under concurrent events
+    // Atomic increment — avoids lost-update race under concurrent events
     this.redis.atomicIncr(key, TTL.DAY).catch(() => {});
     this.logger.warn(`[AntiCheat] user=${userId} room=${roomId} reason=${reason}`, data);
   }
@@ -188,5 +188,3 @@ export class AntiCheatService {
     return (await this.redis.get<number>(`anticheat:flags:${userId}`)) ?? 0;
   }
 }
-
-

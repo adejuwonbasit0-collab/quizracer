@@ -1,4 +1,4 @@
-﻿import * as winston from 'winston';
+import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 
 const { combine, timestamp, printf, colorize, errors, json } = winston.format;
@@ -55,5 +55,3 @@ export function createLogger(context?: string): winston.Logger {
 }
 
 export const appLogger = createLogger('App');
-
-

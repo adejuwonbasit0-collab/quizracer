@@ -7,6 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Users ────────────────────────────────────────────────────────────────────
+
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
@@ -46,12 +48,6 @@ model User {
   transactions    Transaction[]
   xpEvents        XpEvent[]
   refreshTokens   RefreshToken[]
-  followedBy      UserFollow[] @relation("follow_source")
-  following       UserFollow[] @relation("follow_target")
-  chatMessages    ChatMessage[]
-  antiCheatFlags  AntiCheatFlag[]
-  tournamentEntries TournamentEntry[]
-  rankingEntry    RankingEntry?
 
   @@map("users")
 }
@@ -89,6 +85,8 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+// ─── Rooms ────────────────────────────────────────────────────────────────────
+
 model Room {
   id            String    @id @default(uuid())
   code          String    @unique
@@ -111,7 +109,6 @@ model Room {
   participants  RoomParticipant[]
   raceSessions  RaceSession[]
   texts         RoomText[]
-  chatMessages  ChatMessage[]
 
   @@map("rooms")
 }
@@ -145,6 +142,8 @@ model RoomText {
 
   @@map("room_texts")
 }
+
+// ─── Typing ───────────────────────────────────────────────────────────────────
 
 model TypingText {
   id         String   @id @default(uuid())
@@ -186,6 +185,8 @@ model TypingSession {
   @@map("typing_sessions")
 }
 
+// ─── Race Sessions ────────────────────────────────────────────────────────────
+
 model RaceSession {
   id          String   @id @default(uuid())
   roomId      String
@@ -207,6 +208,8 @@ model RaceSession {
 
   @@map("race_sessions")
 }
+
+// ─── Quiz ────────────────────────────────────────────────────────────────────
 
 model Question {
   id           String   @id @default(uuid())
@@ -244,6 +247,8 @@ model QuizAttempt {
   @@map("quiz_attempts")
 }
 
+// ─── Achievements ─────────────────────────────────────────────────────────────
+
 model Achievement {
   id          String  @id @default(uuid())
   key         String  @unique
@@ -273,6 +278,8 @@ model UserAchievement {
   @@unique([userId, achievementId])
   @@map("user_achievements")
 }
+
+// ─── Shop ─────────────────────────────────────────────────────────────────────
 
 model ShopItem {
   id          String   @id @default(uuid())
@@ -309,6 +316,8 @@ model UserInventory {
   @@map("user_inventory")
 }
 
+// ─── Economy ──────────────────────────────────────────────────────────────────
+
 model Transaction {
   id          String   @id @default(uuid())
   userId      String
@@ -336,6 +345,8 @@ model XpEvent {
   @@map("xp_events")
 }
 
+// ─── Notifications ────────────────────────────────────────────────────────────
+
 model Notification {
   id        String    @id @default(uuid())
   userId    String
@@ -353,6 +364,8 @@ model Notification {
   @@map("notifications")
 }
 
+// ─── Feature Flags ────────────────────────────────────────────────────────────
+
 model FeatureFlag {
   id          String   @id @default(uuid())
   key         String   @unique
@@ -363,6 +376,8 @@ model FeatureFlag {
 
   @@map("feature_flags")
 }
+
+// ─── Anti-cheat ───────────────────────────────────────────────────────────────
 
 model AntiCheatFlag {
   id          String   @id @default(uuid())
@@ -375,105 +390,5 @@ model AntiCheatFlag {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@map("anti_cheat_flags")
-}
-
-model GameEvent {
-  id        String   @id @default(uuid())
-  userId    String
-  type      String
-  data      String   @default("{}")
-  createdAt DateTime @default(now())
-
-  @@map("game_events")
-}
-
-model DailyStats {
-  id           String   @id @default(uuid())
-  date         DateTime @unique
-  activeUsers  Int      @default(0)
-  newUsers     Int      @default(0)
-  totalRaces   Int      @default(0)
-  avgWpm       Float    @default(0)
-  createdAt    DateTime @default(now())
-
-  @@map("daily_stats")
-}
-
-model ChatMessage {
-  id        String   @id @default(uuid())
-  roomId    String
-  userId    String
-  content   String
-  createdAt DateTime @default(now())
-
-  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("chat_messages")
-}
-
-model Tournament {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  mode        String   @default("TYPING_RACE")
-  status      String   @default("UPCOMING")
-  maxPlayers  Int      @default(32)
-  prizeCoins  Int      @default(0)
-  prizeGems   Int      @default(0)
-  startsAt    DateTime
-  endsAt      DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  entries TournamentEntry[]
-
-  @@map("tournaments")
-}
-
-model TournamentEntry {
-  id          String   @id @default(uuid())
-  tournamentId String
-  userId       String
-  seedRating   Int      @default(1000)
-  rank         Int?
-  coinsEarned  Int      @default(0)
-  gemsEarned   Int      @default(0)
-  createdAt    DateTime @default(now())
-
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  user       User       @relation(fields: [userId], references: [id])
-
-  @@unique([tournamentId, userId])
-  @@map("tournament_entries")
-}
-
-model RankingEntry {
-  id         String   @id @default(uuid())
-  userId     String   @unique
-  rating     Int      @default(1000)
-  gamesPlayed Int     @default(0)
-  wins        Int     @default(0)
-  losses      Int     @default(0)
-  updatedAt  DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("ranking_entries")
-}
-
-model UserFollow {
-  id         String   @id @default(uuid())
-  sourceId   String
-  targetId   String
-  createdAt  DateTime @default(now())
-
-  source User @relation(fields: [sourceId], references: [id], onDelete: Cascade, name: "follow_source")
-  target User @relation(fields: [targetId], references: [id], onDelete: Cascade, name: "follow_target")
-
-  @@unique([sourceId, targetId])
-  @@map("user_follows")
 }

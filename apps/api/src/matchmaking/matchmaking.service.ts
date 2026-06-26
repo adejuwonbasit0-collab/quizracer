@@ -1,43 +1,68 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { RoomsService } from '../game/rooms/rooms.service';
 
+export interface QueueEntry { userId:string; username:string; rating:number; mode:string; joinedAt:number; }
+
+type NotifyFn = (userIds:string[], code:string, room:unknown)=>void;
+
+const ELO_WINDOW_INITIAL = 200;
+const ELO_WINDOW_MAX = 800;
+const WAIT_WINDOW_EXPAND_MS = 30_000;
+const ROOM_SIZE = 4;
+
 @Injectable()
-export class MatchmakingService {
+export class MatchmakingService implements OnModuleDestroy {
   private readonly logger = new Logger(MatchmakingService.name);
-  private queue: { userId: string; mode: string; rated: boolean }[] = [];
+  private queues = new Map<string, Map<string, QueueEntry>>();
+  private notifyFn?: NotifyFn;
+  private tick?: NodeJS.Timeout;
 
-  constructor(private prisma: PrismaService, private rooms: RoomsService) {}
+  constructor(private readonly rooms: RoomsService) {
+    this.tick = setInterval(()=>this.processTick(), 1500);
+  }
 
-  @Cron('*/5 * * * * *')
-  async processQueue() {
-    if (this.queue.length < 2) return;
-    const ROOM_SIZE = 4;
-    const players = this.queue.splice(0, ROOM_SIZE);
-    const mode = players[0].mode;
-    const hostId = players[0].userId;
-    const room = await this.rooms.create(hostId, {
-      name: '⚡ Ranked Match',
-      mode,
-      isPrivate: true,
-      maxPlayers: ROOM_SIZE,
-    });
-    for (let i = 1; i < players.length; i++) {
-      await this.rooms.join(room.code, players[i].userId);
+  onModuleDestroy() { if(this.tick) clearInterval(this.tick); }
+
+  registerNotifyFn(fn:NotifyFn) { this.notifyFn=fn; }
+
+  enqueue(entry:QueueEntry): number {
+    if (!this.queues.has(entry.mode)) this.queues.set(entry.mode, new Map());
+    this.queues.get(entry.mode)!.set(entry.userId, entry);
+    return this.queues.get(entry.mode)!.size;
+  }
+
+  dequeue(userId:string) { for(const q of this.queues.values()) q.delete(userId); }
+  isInQueue(userId:string): boolean { for(const q of this.queues.values()) if(q.has(userId)) return true; return false; }
+  getStats(): Record<string,number> { const s:Record<string,number>={}; for(const[m,q] of this.queues) s[m]=q.size; return s; }
+
+  private async processTick() {
+    for(const[mode,queue] of this.queues) {
+      if(queue.size<2) continue;
+      const entries=Array.from(queue.values()).sort((a,b)=>a.rating-b.rating);
+      const matched=new Set<string>();
+      const groups:QueueEntry[][]=[];
+      for(let i=0;i<entries.length;i++) {
+        if(matched.has(entries[i].userId)) continue;
+        const wait=Date.now()-entries[i].joinedAt;
+        const window=Math.min(ELO_WINDOW_INITIAL+Math.floor(wait/WAIT_WINDOW_EXPAND_MS)*100, ELO_WINDOW_MAX);
+        const group=[entries[i]]; matched.add(entries[i].userId);
+        for(let j=i+1;j<entries.length&&group.length<ROOM_SIZE;j++) {
+          if(matched.has(entries[j].userId)) continue;
+          if(Math.abs(entries[j].rating-entries[i].rating)<=window) { group.push(entries[j]); matched.add(entries[j].userId); }
+        }
+        if(group.length>=2) groups.push(group);
+      }
+      for(const group of groups) await this.createMatch(group, mode);
     }
-    this.logger.log(`Matchmaking: created room ${room.code} with ${players.length} players`);
   }
 
-  async addToQueue(userId: string, mode: string, rated: boolean) {
-    const existing = this.queue.find(p => p.userId === userId);
-    if (existing) return;
-    this.queue.push({ userId, mode, rated });
-    this.logger.log(`User ${userId} added to queue (${mode})`);
-  }
-
-  async removeFromQueue(userId: string) {
-    const idx = this.queue.findIndex(p => p.userId === userId);
-    if (idx > -1) this.queue.splice(idx, 1);
+  private async createMatch(players:QueueEntry[], mode:string) {
+    try {
+      const room=await this.rooms.create({ name:'⚡ Ranked Match', mode, isPrivate:true, maxPlayers:ROOM_SIZE, hostId:players[0].userId });
+      const q=this.queues.get(mode);
+      players.forEach(p=>q?.delete(p.userId));
+      this.logger.log(`Match: ${room.code} mode=${mode} players=${players.length}`);
+      this.notifyFn?.(players.map(p=>p.userId), room.code, room);
+    } catch(err:any) { this.logger.error(`Match failed: ${err.message}`); }
   }
 }

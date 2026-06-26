@@ -1,20 +1,11 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { RoomsService } from './rooms.service';
-import { Public } from '../../auth/decorators/auth.decorators';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
-@Controller('rooms')
+@ApiTags('rooms') @ApiBearerAuth() @UseGuards(JwtAuthGuard) @Controller('rooms')
 export class RoomsController {
-  constructor(private rooms: RoomsService) {}
-
-  @Get()
-  @Public()
-  getPublic(@Query('mode') mode: string) {
-    return this.rooms.getPublicRooms(mode);
-  }
-
-  @Get(':code')
-  @Public()
-  getOne(@Param('code') code: string) {
-    return this.rooms.findByCode(code);
-  }
+  constructor(private readonly rooms: RoomsService) {}
+  @Get() getPublic(@Query('mode') mode:string) { return this.rooms.getPublicRooms(mode); }
+  @Get(':code') getOne(@Param('code') code:string) { return this.rooms.findByCode(code); }
 }

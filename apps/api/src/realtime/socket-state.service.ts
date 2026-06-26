@@ -1,11 +1,11 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 
 const ONLINE_SET_KEY = 'online:users';
 const ONLINE_TTL_SEC = 90; // heartbeat must refresh within 90s
 
 /**
- * Tracks userId â†” socketId mappings within this process.
+ * Tracks userId ↔ socketId mappings within this process.
  * Cross-process presence is tracked via Redis SADD/SREM on `online:users`.
  */
 @Injectable()
@@ -61,5 +61,3 @@ export class SocketStateService {
     await this.redis.set(`online:user:${userId}`, 1, ONLINE_TTL_SEC);
   }
 }
-
-

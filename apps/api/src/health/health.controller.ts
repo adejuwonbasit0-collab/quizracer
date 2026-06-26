@@ -1,4 +1,4 @@
-﻿import { Controller, Get } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/index';
 
@@ -6,5 +6,3 @@ import { Public } from '../auth/decorators/index';
 export class HealthController {
   @Get() @Public() check() { return { status:'ok', uptime:process.uptime(), timestamp:new Date().toISOString() }; }
 }
-
-

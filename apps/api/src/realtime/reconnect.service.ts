@@ -1,4 +1,4 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -65,7 +65,7 @@ export class ReconnectService {
     let gamePhase: string | null = null;
 
     if (room.status === 'ACTIVE' || room.status === 'COUNTDOWN') {
-      // Typing game â€” get text and progress (only if ACTIVE)
+      // Typing game — get text and progress (only if ACTIVE)
       const textData = room.status === 'ACTIVE'
         ? await this.redis.get(`game_text:${roomId}`)
         : null;
@@ -74,7 +74,7 @@ export class ReconnectService {
         gamePhase = 'active';
       }
 
-      // Quiz game â€” get current question state
+      // Quiz game — get current question state
       const quizState = await this.redis.get(`quiz_state:${roomId}`);
       if (quizState) {
         // Don't send correctIndex to client
@@ -122,5 +122,3 @@ export class ReconnectService {
     };
   }
 }
-
-

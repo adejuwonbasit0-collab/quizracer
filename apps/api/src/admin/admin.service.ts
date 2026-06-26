@@ -6,9 +6,9 @@ export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getOverview() {
-    const now = new Date(); const today = new Date(now); today.setHours(0,0,0,0);
-    const weekAgo = new Date(Date.now()-7*86400_000);
-    const [totalUsers,onlineNow,racesToday,openFlags,newUsersWeek] = await Promise.all([
+    const now=new Date(); const today=new Date(now); today.setHours(0,0,0,0);
+    const weekAgo=new Date(Date.now()-7*86400_000);
+    const [totalUsers,onlineNow,racesToday,openFlags,newUsersWeek]=await Promise.all([
       this.prisma.user.count(),
       this.prisma.user.count({where:{lastActiveAt:{gte:new Date(Date.now()-5*60_000)}}}),
       this.prisma.raceSession.count({where:{createdAt:{gte:today}}}),
@@ -55,32 +55,8 @@ export class AdminService {
   }
 
   async getFlags(limit=50) {
-    const flags = await this.prisma.antiCheatFlag.findMany({
-      where: { isDismissed: false },
-      orderBy: { count: 'desc' },
-      take: limit,
-      select: {
-        id: true,
-        userId: true,
-        reason: true,
-        severity: true,
-        count: true,
-        updatedAt: true,
-        user: {
-          select: { username: true, displayName: true }
-        }
-      }
-    });
-    return flags.map(f => ({
-      id: f.id,
-      userId: f.userId,
-      username: f.user.username,
-      displayName: f.user.displayName,
-      reason: f.reason,
-      severity: f.severity,
-      count: f.count,
-      lastFlaggedAt: f.updatedAt
-    }));
+    const flags=await this.prisma.antiCheatFlag.findMany({where:{isDismissed:false},orderBy:{count:'desc'},take:limit,include:{user:{select:{username:true,displayName:true}}}});
+    return flags.map(f=>({id:f.id,userId:f.userId,username:f.user.username,displayName:f.user.displayName,reason:f.reason,severity:f.severity,count:f.count,lastFlaggedAt:f.updatedAt}));
   }
 
   async dismissFlag(id:string) { return this.prisma.antiCheatFlag.update({where:{id},data:{isDismissed:true}}); }
@@ -88,14 +64,14 @@ export class AdminService {
   async setFeature(key:string, enabled:boolean) { return this.prisma.featureFlag.upsert({where:{key},create:{key,name:key,enabled,updatedAt:new Date()},update:{enabled,updatedAt:new Date()}}); }
 
   async getAnalytics() {
-    const weekAgo = new Date(Date.now()-7*86400_000);
-    const [totalUsers,races7d,newUsers7d,sessionsAll] = await Promise.all([
+    const weekAgo=new Date(Date.now()-7*86400_000);
+    const [totalUsers,races7d,newUsers7d,sessionsAll]=await Promise.all([
       this.prisma.user.count(),
       this.prisma.raceSession.count({where:{createdAt:{gte:weekAgo}}}),
       this.prisma.user.count({where:{createdAt:{gte:weekAgo}}}),
       this.prisma.raceSession.findMany({select:{wpm:true},take:5000}),
     ]);
-    const avgWpm = sessionsAll.length ? Math.round(sessionsAll.reduce((a,s)=>a+s.wpm,0)/sessionsAll.length) : 0;
+    const avgWpm=sessionsAll.length?Math.round(sessionsAll.reduce((a,s)=>a+s.wpm,0)/sessionsAll.length):0;
     return {totalUsers,races7d,newUsers7d,avgWpm,peakConcurrent:0};
   }
 }

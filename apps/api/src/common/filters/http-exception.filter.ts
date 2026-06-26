@@ -1,4 +1,4 @@
-﻿import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 @Catch()
@@ -26,7 +26,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       this.logger.error(`Unhandled: ${exception.message}`, exception.stack);
     }
 
-    if (status >= 500) this.logger.error(`[${req.method}] ${req.url} â†’ ${status}: ${message}`);
+    if (status >= 500) this.logger.error(`[${req.method}] ${req.url} → ${status}: ${message}`);
 
     res.status(status).json({
       success: false, statusCode: status, message,
@@ -36,5 +36,3 @@ export class HttpExceptionFilter implements ExceptionFilter {
     });
   }
 }
-
-

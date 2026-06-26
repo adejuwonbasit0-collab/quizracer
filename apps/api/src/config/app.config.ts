@@ -1,4 +1,4 @@
-﻿import { registerAs } from '@nestjs/config';
+import { registerAs } from '@nestjs/config';
 
 export const appConfig = registerAs('app', () => ({
   port:               parseInt(process.env.PORT ?? '4000', 10),
@@ -11,5 +11,3 @@ export const appConfig = registerAs('app', () => ({
   jwtRefreshExpiresIn:process.env.JWT_REFRESH_EXPIRES_IN ?? '30d',
   isProd:             process.env.NODE_ENV === 'production',
 }));
-
-

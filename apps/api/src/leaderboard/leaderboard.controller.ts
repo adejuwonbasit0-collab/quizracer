@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,5 +10,3 @@ export class LeaderboardController {
     return this.lb.get({ sortBy:s, search:q, page:+p||1, limit:Math.min(+l||20,100) });
   }
 }
-
-

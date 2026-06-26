@@ -1,4 +1,4 @@
-﻿import { Module, Global } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { AppLogger } from './app-logger.service';
 
 @Global()
@@ -7,5 +7,3 @@ import { AppLogger } from './app-logger.service';
   exports:   [AppLogger],
 })
 export class LoggerModule {}
-
-

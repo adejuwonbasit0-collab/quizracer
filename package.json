@@ -1,15 +1,13 @@
 {
   "name": "quizracer",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev":         "concurrently \"npm run dev:api\" \"npm run dev:web\" --names \"API,WEB\" --prefix-colors \"cyan,magenta\"",
-    "dev:api":     "cd apps/api && npm run dev",
-    "dev:web":     "cd apps/web && npm run dev",
-    "install:all": "cd apps/api && npm install && cd ../web && npm install",
-    "db:push":     "cd apps/api && npx prisma db push",
-    "db:seed":     "cd apps/api && npm run db:seed",
-    "build":       "cd apps/api && npm run build && cd ../web && npm run build"
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "cd apps/api && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "install:all": "npm install && cd apps/api && npm install && cd ../web && npm install && cd ../../packages/shared-types && npm install",
+    "build": "cd apps/api && npm run build && cd ../web && npm run build"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"

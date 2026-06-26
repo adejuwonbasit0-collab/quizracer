@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Patch, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Query, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -15,5 +15,3 @@ export class UsersController {
     return this.users.getProfile(username).then(p => this.users.getRecentRaces(p.id, +l));
   }
 }
-
-

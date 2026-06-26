@@ -1,4 +1,4 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { AppConfigService } from '../config/app-config.service';
 
@@ -24,7 +24,7 @@ export class EmailService {
         this.logger.warn(`SMTP verify failed: ${err.message}`);
       });
     } else {
-      this.logger.warn('Email not configured â€” emails will be logged only');
+      this.logger.warn('Email not configured — emails will be logged only');
     }
   }
 
@@ -38,7 +38,7 @@ export class EmailService {
       to,
       subject: 'Verify your QuizRacer account',
       html: this.buildEmailTemplate({
-        title: 'Welcome to QuizRacer! ðŸŽï¸',
+        title: 'Welcome to QuizRacer! 🏎️',
         preheader: 'Verify your email to start racing',
         heading: `Hey ${displayName}!`,
         body: `
@@ -85,7 +85,7 @@ export class EmailService {
     const url = `${this.config.frontendUrl}/tournaments`;
     await this.send({
       to,
-      subject: `You're in â€” ${tournamentName} starts soon!`,
+      subject: `You're in — ${tournamentName} starts soon!`,
       html: this.buildEmailTemplate({
         title: `Tournament: ${tournamentName}`,
         preheader: `Your tournament starts ${startAt.toLocaleDateString()}`,
@@ -107,16 +107,16 @@ export class EmailService {
       to,
       subject: 'Welcome to QuizRacer!',
       html: this.buildEmailTemplate({
-        title: 'Welcome to the track! ðŸ',
+        title: 'Welcome to the track! 🏁',
         preheader: 'Your QuizRacer journey begins now',
         heading: `Welcome, ${displayName}!`,
         body: `
           <p>Your account is all set. Here's what you can do:</p>
           <ul>
-            <li>ðŸŽï¸ Race against others in real-time typing races</li>
-            <li>ðŸ§  Test your knowledge in quiz races</li>
-            <li>ðŸ† Climb the global leaderboard</li>
-            <li>âŒ¨ï¸ Improve your typing with the Mavis Beacon-style tutor</li>
+            <li>🏎️ Race against others in real-time typing races</li>
+            <li>🧠 Test your knowledge in quiz races</li>
+            <li>🏆 Climb the global leaderboard</li>
+            <li>⌨️ Improve your typing with the Mavis Beacon-style tutor</li>
           </ul>
           <p>Start with a practice race to warm up, then jump into multiplayer!</p>
         `,
@@ -198,7 +198,7 @@ export class EmailService {
   <div class="container">
     <div class="card">
       <div class="header">
-        <h1>âŒ¨ï¸ QuizRacer</h1>
+        <h1>⌨️ QuizRacer</h1>
       </div>
       <div class="body">
         <h2>${opts.heading}</h2>
@@ -211,12 +211,10 @@ export class EmailService {
       ${opts.footnote ? `<div class="footer">${opts.footnote}</div>` : ''}
     </div>
     <p style="text-align:center;color:#444;font-size:12px;margin-top:20px;">
-      Â© ${new Date().getFullYear()} QuizRacer. All rights reserved.
+      © ${new Date().getFullYear()} QuizRacer. All rights reserved.
     </p>
   </div>
 </body>
 </html>`;
   }
 }
-
-

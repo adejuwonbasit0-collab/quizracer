@@ -1,4 +1,4 @@
-﻿import { Module, Global } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { AppConfigService } from './app-config.service';
@@ -73,5 +73,3 @@ const validationSchema = Joi.object({
   exports: [AppConfigService],
 })
 export class AppConfigModule {}
-
-

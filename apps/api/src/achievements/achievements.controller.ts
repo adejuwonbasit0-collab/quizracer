@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AchievementsService } from './achievements.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,5 +10,3 @@ export class AchievementsController {
   @Get() getMine(@CurrentUser() u:any) { return this.achievements.getUserAchievements(u.id); }
   @Get('users/:userId') getUser(@Param('userId') id:string) { return this.achievements.getUserAchievements(id); }
 }
-
-

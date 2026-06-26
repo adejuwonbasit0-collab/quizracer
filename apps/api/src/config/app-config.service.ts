@@ -1,11 +1,11 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AppConfigService {
   constructor(private readonly config: ConfigService) {}
 
-  // â”€â”€ App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── App ──────────────────────────────────────────────────
   get nodeEnv(): string {
     return this.config.get<string>('NODE_ENV', 'development');
   }
@@ -45,17 +45,17 @@ export class AppConfigService {
     return this.config.getOrThrow<string>('COOKIE_SECRET');
   }
 
-  // â”€â”€ Database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Database ─────────────────────────────────────────────
   get databaseUrl(): string {
     return this.config.getOrThrow<string>('DATABASE_URL');
   }
 
-  // â”€â”€ Redis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Redis ─────────────────────────────────────────────────
   get redisUrl(): string {
     return this.config.getOrThrow<string>('REDIS_URL');
   }
 
-  // â”€â”€ JWT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── JWT ───────────────────────────────────────────────────
   get jwtAccessSecret(): string {
     return this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
   }
@@ -72,7 +72,7 @@ export class AppConfigService {
     return this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '30d');
   }
 
-  // â”€â”€ OAuth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── OAuth ─────────────────────────────────────────────────
   get googleClientId(): string {
     return this.config.get<string>('GOOGLE_CLIENT_ID', '');
   }
@@ -105,7 +105,7 @@ export class AppConfigService {
     return !!(this.discordClientId && this.discordClientSecret);
   }
 
-  // â”€â”€ Email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Email ─────────────────────────────────────────────────
   get smtpHost(): string {
     return this.config.get<string>('SMTP_HOST', '');
   }
@@ -138,7 +138,7 @@ export class AppConfigService {
     return !!(this.smtpHost && this.smtpUser);
   }
 
-  // â”€â”€ Stripe â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Stripe ────────────────────────────────────────────────
   get stripeSecretKey(): string {
     return this.config.get<string>('STRIPE_SECRET_KEY', '');
   }
@@ -151,7 +151,7 @@ export class AppConfigService {
     return !!this.stripeSecretKey;
   }
 
-  // â”€â”€ Paystack â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Paystack ──────────────────────────────────────────────
   get paystackSecretKey(): string {
     return this.config.get<string>('PAYSTACK_SECRET_KEY', '');
   }
@@ -164,5 +164,3 @@ export class AppConfigService {
     return !!this.paystackSecretKey;
   }
 }
-
-

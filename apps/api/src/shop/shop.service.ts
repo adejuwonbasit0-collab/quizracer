@@ -1,4 +1,4 @@
-﻿import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -53,5 +53,3 @@ export class ShopService {
     return eq.map(i=>({...i.item,metadata:JSON.parse(i.item.metadata)}));
   }
 }
-
-

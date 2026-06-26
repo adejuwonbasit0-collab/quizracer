@@ -1,4 +1,4 @@
-﻿import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsString, MinLength, MaxLength, Matches } from 'class-validator';
@@ -50,5 +50,3 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   logout() { return { message: 'Logged out successfully' }; }
 }
-
-

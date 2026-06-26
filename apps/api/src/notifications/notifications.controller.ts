@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Patch, Param, Query, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Query, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,5 +12,3 @@ export class NotificationsController {
   @Patch(':id/read') @HttpCode(HttpStatus.OK) read(@CurrentUser() u:any,@Param('id') id:string) { return this.n.markRead(id,u.id); }
   @Patch('read-all') @HttpCode(HttpStatus.OK) readAll(@CurrentUser() u:any) { return this.n.markAllRead(u.id); }
 }
-
-

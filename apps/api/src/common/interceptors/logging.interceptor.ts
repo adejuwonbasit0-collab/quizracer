@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable, NestInterceptor, ExecutionContext, CallHandler,
 } from '@nestjs/common';
 import { Observable, throwError } from 'rxjs';
@@ -32,5 +32,3 @@ export class LoggingInterceptor implements NestInterceptor {
     );
   }
 }
-
-

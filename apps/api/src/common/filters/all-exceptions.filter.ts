@@ -1,4 +1,4 @@
-﻿import {
+import {
   ExceptionFilter, Catch, ArgumentsHost,
   HttpException, HttpStatus, Logger,
 } from '@nestjs/common';
@@ -19,11 +19,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (status >= 500) {
       this.logger.error(
-        `${req.method} ${req.url} â†’ ${status}`,
+        `${req.method} ${req.url} → ${status}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     } else if (this.config.isDevelopment) {
-      this.logger.debug(`${req.method} ${req.url} â†’ ${status}: ${message}`);
+      this.logger.debug(`${req.method} ${req.url} → ${status}: ${message}`);
     }
 
     res.status(status).json({
@@ -94,5 +94,3 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return out;
   }
 }
-
-

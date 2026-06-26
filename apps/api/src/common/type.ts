@@ -1,5 +1,5 @@
-﻿// apps/api/src/common/types.ts
-// All shared enums/interfaces inlined here â€” no external package needed
+// apps/api/src/common/types.ts
+// All shared enums/interfaces inlined here — no external package needed
 
 export enum UserRole {
   USER       = 'USER',
@@ -67,5 +67,3 @@ export interface PaginationQuery {
   limit?: number;
   search?: string;
 }
-
-

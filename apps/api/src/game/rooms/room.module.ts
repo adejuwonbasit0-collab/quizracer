@@ -1,4 +1,4 @@
-﻿// apps/api/src/game/rooms/rooms.module.ts
+// apps/api/src/game/rooms/rooms.module.ts
 import { Module } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
 import { RoomsController } from './rooms.controller';
@@ -9,5 +9,3 @@ import { RoomsController } from './rooms.controller';
   exports: [RoomsService],
 })
 export class RoomsModule {}
-
-

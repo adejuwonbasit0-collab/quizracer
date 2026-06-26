@@ -1,4 +1,4 @@
-﻿import { Injectable, LoggerService, LogLevel } from '@nestjs/common';
+import { Injectable, LoggerService, LogLevel } from '@nestjs/common';
 import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 
@@ -117,5 +117,3 @@ export class AppLogger implements LoggerService {
     this.write('info', `game:${event}`, 'Game', { roomId, ...meta });
   }
 }
-
-

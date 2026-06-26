@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Patch, Delete, Param, Body, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Body, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -19,5 +19,3 @@ export class AdminController {
   @Get('features') features() { return this.admin.getFeatures(); }
   @Patch('features/:key') @Roles('ADMIN','SUPERADMIN') setFeature(@Param('key') key:string,@Body() b:{enabled:boolean}) { return this.admin.setFeature(key,b.enabled); }
 }
-
-

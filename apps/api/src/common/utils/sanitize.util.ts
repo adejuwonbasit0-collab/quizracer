@@ -1,4 +1,4 @@
-﻿import xss from 'xss';
+import xss from 'xss';
 
 /**
  * Sanitize a string for safe HTML output.
@@ -38,7 +38,7 @@ export function sanitizeUsername(input: string): string {
 }
 
 /**
- * Pagination helper â€” returns safe page/limit values.
+ * Pagination helper — returns safe page/limit values.
  */
 export function parsePagination(
   page: unknown,
@@ -87,5 +87,3 @@ export function validateWpm(
   const ratio = charCount / expectedChars;
   return ratio >= 0.5 && ratio <= 2.0;
 }
-
-

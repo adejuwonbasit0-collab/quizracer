@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AchievementsService } from './achievements.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,5 +18,3 @@ export class AchievementsListener {
     });
   }
 }
-
-

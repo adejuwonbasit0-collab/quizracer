@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Post, Delete, Param, Query, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ShopService } from './shop.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,5 +14,3 @@ export class ShopController {
   @Post('inventory/:id/equip') @HttpCode(HttpStatus.OK) equip(@CurrentUser() u:any,@Param('id') id:string) { return this.shop.equip(u.id,id); }
   @Delete('inventory/:id/equip') @HttpCode(HttpStatus.OK) unequip(@CurrentUser() u:any,@Param('id') id:string) { return this.shop.unequip(u.id,id); }
 }
-
-

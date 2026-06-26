@@ -1,4 +1,4 @@
-﻿// apps/api/src/auth/guards/jwt-auth.guard.ts
+// apps/api/src/auth/guards/jwt-auth.guard.ts
 import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
@@ -23,5 +23,3 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return user;
   }
 }
-
-

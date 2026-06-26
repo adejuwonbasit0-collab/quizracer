@@ -1,4 +1,4 @@
-﻿import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail, IsString, MinLength, MaxLength,
   Matches, IsOptional, IsNotEmpty,
@@ -126,5 +126,3 @@ export class AuthResponseDto {
     isVerified: boolean;
   };
 }
-
-

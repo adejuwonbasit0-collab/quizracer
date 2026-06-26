@@ -1,4 +1,4 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-discord';
 import { AppConfigService } from '../../config/app-config.service';
@@ -56,5 +56,3 @@ export class DiscordStrategy extends PassportStrategy(Strategy, 'discord') {
     }
   }
 }
-
-

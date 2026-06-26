@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -19,5 +19,3 @@ export class NotificationsService {
   async markRead(id:string,userId:string) { return this.prisma.notification.updateMany({where:{id,userId},data:{isRead:true,readAt:new Date()}}); }
   async markAllRead(userId:string) { return this.prisma.notification.updateMany({where:{userId,isRead:false},data:{isRead:true,readAt:new Date()}}); }
 }
-
-

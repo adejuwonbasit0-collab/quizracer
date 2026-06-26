@@ -1,4 +1,4 @@
-﻿import { Injectable, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -89,5 +89,3 @@ export class AuthService {
     return { user: safeUser, accessToken, refreshToken, expiresIn: 900 };
   }
 }
-
-

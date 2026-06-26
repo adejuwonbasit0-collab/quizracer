@@ -1,4 +1,4 @@
-﻿import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export function sanitizeUsername(input: string): string {
   return input
@@ -31,5 +31,3 @@ export async function generateUsername(base: string, prisma: PrismaService): Pro
   // Last resort: timestamp suffix
   return `${sanitized.slice(0, 20)}${Date.now().toString(36)}`;
 }
-
-

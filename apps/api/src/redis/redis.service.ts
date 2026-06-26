@@ -1,4 +1,4 @@
-﻿import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { AppConfigService } from '../config/app-config.service';
 
@@ -73,14 +73,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.subClient;
   }
 
-  // â”€â”€ Cache helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Cache helpers ─────────────────────────────────────────
 
   async get<T>(key: string): Promise<T | null> {
     try {
       const raw = await this.client.get(key);
       return raw ? (JSON.parse(raw) as T) : null;
     } catch (err: any) {
-      this.logger.warn(`Redis GET failed: ${key} â€” ${err.message}`);
+      this.logger.warn(`Redis GET failed: ${key} — ${err.message}`);
       return null;
     }
   }
@@ -94,7 +94,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         await this.client.set(key, serialized);
       }
     } catch (err: any) {
-      this.logger.warn(`Redis SET failed: ${key} â€” ${err.message}`);
+      this.logger.warn(`Redis SET failed: ${key} — ${err.message}`);
     }
   }
 
@@ -102,7 +102,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       if (keys.length) await this.client.del(...keys);
     } catch (err: any) {
-      this.logger.warn(`Redis DEL failed â€” ${err.message}`);
+      this.logger.warn(`Redis DEL failed — ${err.message}`);
     }
   }
 
@@ -121,7 +121,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       } while (cursor !== '0');
       return deleted;
     } catch (err: any) {
-      this.logger.warn(`Redis DEL pattern failed: ${pattern} â€” ${err.message}`);
+      this.logger.warn(`Redis DEL pattern failed: ${pattern} — ${err.message}`);
       return 0;
     }
   }
@@ -147,7 +147,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.expire(key, ttlSeconds);
   }
 
-  // â”€â”€ Hash helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Hash helpers ──────────────────────────────────────────
 
   async hset(key: string, field: string, value: unknown): Promise<void> {
     await this.client.hset(key, field, JSON.stringify(value));
@@ -172,7 +172,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (fields.length) await this.client.hdel(key, ...fields);
   }
 
-  // â”€â”€ Sorted set helpers (leaderboard) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Sorted set helpers (leaderboard) ─────────────────────
 
   async zadd(key: string, score: number, member: string): Promise<void> {
     await this.client.zadd(key, score, member);
@@ -208,7 +208,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.zcard(key);
   }
 
-  // â”€â”€ Set helpers (matchmaking) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Set helpers (matchmaking) ─────────────────────────────
 
   async sadd(key: string, ...members: string[]): Promise<void> {
     await this.client.sadd(key, ...members);
@@ -226,7 +226,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.scard(key);
   }
 
-  // â”€â”€ List helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── List helpers ──────────────────────────────────────────
 
   async lpush(key: string, ...values: string[]): Promise<void> {
     await this.client.lpush(key, ...values);
@@ -240,13 +240,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.llen(key);
   }
 
-  // â”€â”€ Publish helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Publish helper ────────────────────────────────────────
 
   async publish(channel: string, message: unknown): Promise<void> {
     await this.pubClient.publish(channel, JSON.stringify(message));
   }
 
-  // â”€â”€ Atomic lock helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Atomic lock helper ────────────────────────────────────
   /**
    * Atomically acquire a lock (SET NX EX).
    * Returns true if the lock was acquired, false if it already exists.
@@ -256,12 +256,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       const result = await this.client.set(key, '1', 'EX', ttlSeconds, 'NX');
       return result === 'OK';
     } catch (err: any) {
-      this.logger.warn(`Redis acquireLock failed: ${key} â€” ${err.message}`);
+      this.logger.warn(`Redis acquireLock failed: ${key} — ${err.message}`);
       return false;
     }
   }
 
-  /** Atomic INCR â€” safe for counters shared across requests */
+  /** Atomic INCR — safe for counters shared across requests */
   async atomicIncr(key: string, ttlSeconds?: number): Promise<number> {
     try {
       const val = await this.client.incr(key);
@@ -271,10 +271,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       }
       return val;
     } catch (err: any) {
-      this.logger.warn(`Redis atomicIncr failed: ${key} â€” ${err.message}`);
+      this.logger.warn(`Redis atomicIncr failed: ${key} — ${err.message}`);
       return 0;
     }
   }
 }
-
-

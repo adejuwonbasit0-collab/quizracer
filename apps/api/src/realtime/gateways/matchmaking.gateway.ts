@@ -1,24 +1,74 @@
-﻿import { WebSocketGateway, SubscribeMessage, WebSocketServer, WsException } from '@nestjs/websockets';
+import {
+  WebSocketGateway, WebSocketServer,
+  SubscribeMessage, ConnectedSocket, MessageBody,
+  OnGatewayInit,
+} from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { UseGuards } from '@nestjs/common';
-import { WsJwtGuard } from '../guards/ws-jwt.guard';
+import {
+  ClientToServerEvents, ServerToClientEvents,
+  InterServerEvents, SocketData, GameMode,
+} from '@quizracer/shared-types';
+import { MatchmakingService } from '../../matchmaking/matchmaking.service';
 
-@WebSocketGateway({ namespace: 'matchmaking' })
-@UseGuards(WsJwtGuard)
-export class MatchmakingGateway {
-  @WebSocketServer() server: Server;
+type QRSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
-  @SubscribeMessage('matchmaking:queue')
-  async handleQueue(client: Socket, payload: { mode: string; rated: boolean }) {
-    const userId = client.data.userId;
-    const username = client.data.username || 'user';
-    return { queued: true, mode: payload.mode, rated: payload.rated };
+@WebSocketGateway()
+export class MatchmakingGateway implements OnGatewayInit {
+  @WebSocketServer()
+  server!: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+
+  private readonly logger = new Logger(MatchmakingGateway.name);
+
+  constructor(private readonly matchmakingService: MatchmakingService) {}
+
+  afterInit(): void {
+    // Wire matchmaking notifications back through this gateway
+    this.matchmakingService.registerNotifyFn(
+      (userIds, roomCode, room) => this.notifyMatchFound(userIds, roomCode, room),
+    );
   }
 
-  @SubscribeMessage('matchmaking:cancel')
-  async handleCancel(client: Socket) {
-    return { cancelled: true };
+  @SubscribeMessage('matchmaking:join')
+  async handleJoin(
+    @ConnectedSocket() socket: QRSocket,
+    @MessageBody() payload: { mode: GameMode; rated: boolean },
+  ) {
+    try {
+      if (!payload?.mode) return { success: false, error: 'mode is required' };
+
+      const queueSize = await this.matchmakingService.enqueue(
+        socket.data.userId,
+        socket.data.username,
+        payload.mode,
+        payload.rated ?? false,
+      );
+
+      socket.emit('matchmaking:status', { status: 'searching', queueSize });
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  @SubscribeMessage('matchmaking:leave')
+  async handleLeave(@ConnectedSocket() socket: QRSocket) {
+    try {
+      await this.matchmakingService.dequeue(socket.data.userId);
+      socket.emit('matchmaking:status', { status: 'cancelled' });
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  notifyMatchFound(userIds: string[], roomCode: string, room: unknown): void {
+    for (const userId of userIds) {
+      this.server.to(`user:${userId}`).emit('matchmaking:match_found', {
+        roomCode,
+        room: room as any,
+      });
+      this.logger.debug(`Match notification sent to user ${userId} → room ${roomCode}`);
+    }
   }
 }
-
-
