@@ -1,0 +1,479 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String    @unique
+  displayName   String
+  passwordHash  String?
+  avatar        String?
+  bio           String?
+  role          String    @default("USER")
+  level         Int       @default(1)
+  xp            Int       @default(0)
+  xpToNextLevel Int       @default(100)
+  coins         Int       @default(100)
+  gems          Int       @default(0)
+  rating        Int       @default(1000)
+  rank          String    @default("Novice")
+  isPremium     Boolean   @default(false)
+  isBanned      Boolean   @default(false)
+  banReason     String?
+  bannedUntil   DateTime?
+  isVerified    Boolean   @default(false)
+  theme         String    @default("dark")
+  soundEnabled  Boolean   @default(true)
+  emailNotifications Boolean @default(true)
+  streak        Int       @default(0)
+  lastLoginAt   DateTime?
+  lastActiveAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  stats           UserStats?
+  raceSessions    RaceSession[]
+  achievements    UserAchievement[]
+  roomParticipants RoomParticipant[]
+  notifications   Notification[]
+  inventory       UserInventory[]
+  transactions    Transaction[]
+  xpEvents        XpEvent[]
+  refreshTokens   RefreshToken[]
+  followedBy      UserFollow[] @relation("follow_source")
+  following       UserFollow[] @relation("follow_target")
+  chatMessages    ChatMessage[]
+  antiCheatFlags  AntiCheatFlag[]
+  tournamentEntries TournamentEntry[]
+  rankingEntry    RankingEntry?
+
+  @@map("users")
+}
+
+model UserStats {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  bestWpm        Int      @default(0)
+  avgWpm         Float    @default(0)
+  avgAccuracy    Float    @default(0)
+  totalGames     Int      @default(0)
+  totalWins      Int      @default(0)
+  totalLosses    Int      @default(0)
+  currentStreak  Int      @default(0)
+  longestStreak  Int      @default(0)
+  totalTypingTime Int     @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String
+  tokenHash   String   @unique
+  ipAddress   String?
+  deviceInfo  String?
+  isRevoked   Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Room {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  name          String
+  mode          String    @default("TYPING_RACE")
+  status        String    @default("WAITING")
+  isPrivate     Boolean   @default(false)
+  maxPlayers    Int       @default(6)
+  minPlayers    Int       @default(2)
+  hostId        String
+  difficulty    String    @default("medium")
+  subject       String?
+  roundCount    Int       @default(10)
+  timePerRound  Int       @default(20)
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  participants  RoomParticipant[]
+  raceSessions  RaceSession[]
+  texts         RoomText[]
+  chatMessages  ChatMessage[]
+
+  @@map("rooms")
+}
+
+model RoomParticipant {
+  id          String    @id @default(uuid())
+  roomId      String
+  userId      String
+  socketId    String?
+  isHost      Boolean   @default(false)
+  isReady     Boolean   @default(false)
+  isSpectator Boolean   @default(false)
+  leftAt      DateTime?
+  joinedAt    DateTime  @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId])
+  @@map("room_participants")
+}
+
+model RoomText {
+  id     String @id @default(uuid())
+  roomId String
+  textId String
+  usedAt DateTime @default(now())
+
+  room Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  text TypingText  @relation(fields: [textId], references: [id])
+
+  @@map("room_texts")
+}
+
+model TypingText {
+  id         String   @id @default(uuid())
+  content    String
+  wordCount  Int
+  charCount  Int
+  difficulty String   @default("medium")
+  category   String   @default("general")
+  author     String?
+  source     String?
+  language   String   @default("en")
+  isActive   Boolean  @default(true)
+  timesUsed  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  typingSessions TypingSession[]
+  roomTexts      RoomText[]
+
+  @@map("typing_texts")
+}
+
+model TypingSession {
+  id              String   @id @default(uuid())
+  raceSessionId   String?
+  userId          String
+  textId          String
+  totalChars      Int
+  typedChars      Int
+  correctChars    Int
+  incorrectChars  Int
+  wpm             Float
+  netWpm          Float
+  accuracy        Float
+  durationMs      Int
+  createdAt       DateTime @default(now())
+
+  text TypingText @relation(fields: [textId], references: [id])
+
+  @@map("typing_sessions")
+}
+
+model RaceSession {
+  id          String   @id @default(uuid())
+  roomId      String
+  userId      String
+  mode        String
+  score       Int      @default(0)
+  rank        Int
+  wpm         Int      @default(0)
+  accuracy    Float    @default(0)
+  errors      Int      @default(0)
+  durationMs  Int      @default(0)
+  coinsEarned Int      @default(0)
+  xpEarned    Int      @default(0)
+  isWin       Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("race_sessions")
+}
+
+model Question {
+  id           String   @id @default(uuid())
+  text         String
+  options      String
+  correctIndex Int
+  explanation  String?
+  subject      String   @default("general")
+  difficulty   String   @default("medium")
+  tags         String   @default("[]")
+  imageUrl     String?
+  isActive     Boolean  @default(true)
+  timesUsed    Int      @default(0)
+  correctRate  Float    @default(0)
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  attempts QuizAttempt[]
+
+  @@map("questions")
+}
+
+model QuizAttempt {
+  id            String   @id @default(uuid())
+  userId        String
+  questionId    String
+  selectedIndex Int
+  isCorrect     Boolean
+  timeMs        Int
+  createdAt     DateTime @default(now())
+
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@map("quiz_attempts")
+}
+
+model Achievement {
+  id          String  @id @default(uuid())
+  key         String  @unique
+  name        String
+  description String
+  icon        String?
+  rarity      String  @default("common")
+  category    String  @default("general")
+  xpReward    Int     @default(0)
+  coinReward  Int     @default(0)
+  isActive    Boolean @default(true)
+
+  users UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model ShopItem {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  type        String
+  rarity      String   @default("common")
+  coinPrice   Int      @default(0)
+  gemPrice    Int      @default(0)
+  imageUrl    String?
+  previewUrl  String?
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  metadata    String   @default("{}")
+  createdAt   DateTime @default(now())
+
+  inventory UserInventory[]
+
+  @@map("shop_items")
+}
+
+model UserInventory {
+  id         String   @id @default(uuid())
+  userId     String
+  itemId     String
+  isEquipped Boolean  @default(false)
+  acquiredAt DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item ShopItem @relation(fields: [itemId], references: [id])
+
+  @@unique([userId, itemId])
+  @@map("user_inventory")
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String
+  amount      Int
+  currency    String   @default("coins")
+  description String?
+  metadata    String   @default("{}")
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model XpEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("xp_events")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  senderId  String?
+  type      String
+  title     String
+  body      String
+  data      String    @default("{}")
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String?
+  enabled     Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+
+  @@map("feature_flags")
+}
+
+model AntiCheatFlag {
+  id          String   @id @default(uuid())
+  userId      String
+  reason      String
+  details     String?
+  severity    String   @default("medium")
+  count       Int      @default(1)
+  isDismissed Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("anti_cheat_flags")
+}
+
+model GameEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  data      String   @default("{}")
+  createdAt DateTime @default(now())
+
+  @@map("game_events")
+}
+
+model DailyStats {
+  id           String   @id @default(uuid())
+  date         DateTime @unique
+  activeUsers  Int      @default(0)
+  newUsers     Int      @default(0)
+  totalRaces   Int      @default(0)
+  avgWpm       Float    @default(0)
+  createdAt    DateTime @default(now())
+
+  @@map("daily_stats")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("chat_messages")
+}
+
+model Tournament {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  mode        String   @default("TYPING_RACE")
+  status      String   @default("UPCOMING")
+  maxPlayers  Int      @default(32)
+  prizeCoins  Int      @default(0)
+  prizeGems   Int      @default(0)
+  startsAt    DateTime
+  endsAt      DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entries TournamentEntry[]
+
+  @@map("tournaments")
+}
+
+model TournamentEntry {
+  id          String   @id @default(uuid())
+  tournamentId String
+  userId       String
+  seedRating   Int      @default(1000)
+  rank         Int?
+  coinsEarned  Int      @default(0)
+  gemsEarned   Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([tournamentId, userId])
+  @@map("tournament_entries")
+}
+
+model RankingEntry {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  rating     Int      @default(1000)
+  gamesPlayed Int     @default(0)
+  wins        Int     @default(0)
+  losses      Int     @default(0)
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ranking_entries")
+}
+
+model UserFollow {
+  id         String   @id @default(uuid())
+  sourceId   String
+  targetId   String
+  createdAt  DateTime @default(now())
+
+  source User @relation(fields: [sourceId], references: [id], onDelete: Cascade, name: "follow_source")
+  target User @relation(fields: [targetId], references: [id], onDelete: Cascade, name: "follow_target")
+
+  @@unique([sourceId, targetId])
+  @@map("user_follows")
+}

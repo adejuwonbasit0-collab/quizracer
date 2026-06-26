@@ -1,0 +1,50 @@
+﻿import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { TournamentsService } from './tournaments.service';
+import { JwtAuthGuard, RolesGuard } from '../../auth/guards/auth.guard';
+import { Roles, CurrentUser } from '../../auth/decorators/auth.decorators';
+
+@ApiTags('tournaments')
+@ApiBearerAuth()
+@Controller('tournaments')
+export class TournamentsController {
+  constructor(private readonly service: TournamentsService) {}
+
+  @Get()
+  list(@Query() query: any) {
+    return this.service.listTournaments(query);
+  }
+
+  @Get(':id')
+  get(@Param('id') id: string) {
+    return this.service.getTournament(id);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN')
+  create(@Body() dto: any) {
+    return this.service.createTournament(dto);
+  }
+
+  @Post(':id/register')
+  @UseGuards(JwtAuthGuard)
+  register(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.service.registerPlayer(user.id, id);
+  }
+
+  @Delete(':id/register')
+  @UseGuards(JwtAuthGuard)
+  withdraw(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.service.withdrawPlayer(user.id, id);
+  }
+
+  @Post(':id/bracket')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN')
+  generateBracket(@Param('id') id: string) {
+    return this.service.generateBracket(id);
+  }
+}
+
+

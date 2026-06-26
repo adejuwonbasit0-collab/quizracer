@@ -1,0 +1,503 @@
+﻿import {
+  WebSocketGateway, WebSocketServer, SubscribeMessage,
+  ConnectedSocket, MessageBody, OnGatewayInit,
+  OnGatewayConnection, OnGatewayDisconnect,
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { RoomsService } from '../../game/rooms/rooms.service';
+import { TypingService } from '../../game/typing/typing.service';
+import { QuizService } from '../../game/quiz/quiz.service';
+import { MatchmakingService } from '../../matchmaking/matchmaking.service';
+import { AchievementsService } from '../../achievements/achievements.service';
+import { PrismaService } from '../../prisma/prisma.service';
+
+interface AuthSocket extends Socket {
+  userId: string;
+  username: string;
+  displayName: string;
+  role: string;
+  rating: number;
+}
+
+const QUIZ_QUESTIONS = 10;
+const QUIZ_SECONDS   = 20;
+const REVEAL_DELAY   = 3500;
+const NEXT_DELAY     = 2000;
+
+@WebSocketGateway({
+  cors: { origin: (_: string, cb: Function) => cb(null, true), credentials: true },
+  transports: ['websocket', 'polling'],
+  pingInterval: 10000,
+  pingTimeout: 5000,
+})
+export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+  @WebSocketServer() server: Server;
+  private readonly logger = new Logger(GameGateway.name);
+
+  // State maps
+  private roomMembers    = new Map<string, Set<string>>();  // code â†’ Set<userId>
+  private userRoom       = new Map<string, string>();        // userId â†’ code
+  private countdownTimers= new Map<string, NodeJS.Timeout>();
+  private quizTimers     = new Map<string, NodeJS.Timeout>();
+  private socketUser     = new Map<string, string>();        // socketId â†’ userId
+  private userSocket     = new Map<string, AuthSocket>();    // userId â†’ socket
+
+  constructor(
+    private readonly jwt:           JwtService,
+    private readonly config:        ConfigService,
+    private readonly emitter:       EventEmitter2,
+    private readonly rooms:         RoomsService,
+    private readonly typing:        TypingService,
+    private readonly quiz:          QuizService,
+    private readonly matchmaking:   MatchmakingService,
+    private readonly achievements:  AchievementsService,
+    private readonly prisma:        PrismaService,
+  ) {}
+
+  afterInit(server: Server) {
+    this.logger.log('ðŸ”Œ WebSocket Gateway initialized');
+
+    // Register matchmaking notify callback
+    this.matchmaking.registerNotifyFn((userIds, code, room) => {
+      for (const userId of userIds) {
+        const sock = this.userSocket.get(userId);
+        sock?.emit('matchmaking:match_found', { room: this.safeRoom(room as any) });
+      }
+    });
+
+    // JWT middleware â€” authenticate every socket on connect
+    server.use(async (socket: any, next) => {
+      try {
+        const token =
+          socket.handshake.auth?.token ??
+          socket.handshake.headers?.authorization?.replace('Bearer ', '');
+        if (!token) return next(new Error('Missing auth token'));
+
+        const payload = this.jwt.verify(token, {
+          secret: this.config.get<string>('app.jwtAccessSecret'),
+        }) as any;
+
+        const user = await this.prisma.user.findUnique({
+          where: { id: payload.sub },
+          select: { id: true, username: true, displayName: true, role: true, rating: true, isBanned: true },
+        });
+        if (!user || user.isBanned) return next(new Error('Unauthorized'));
+
+        socket.userId      = user.id;
+        socket.username    = user.username;
+        socket.displayName = user.displayName;
+        socket.role        = user.role;
+        socket.rating      = user.rating;
+        next();
+      } catch {
+        next(new Error('Invalid token'));
+      }
+    });
+  }
+
+  async handleConnection(client: AuthSocket) {
+    this.logger.debug(`Connected: ${client.userId} (${client.id})`);
+    this.socketUser.set(client.id, client.userId);
+    this.userSocket.set(client.userId, client);
+
+    // Update last active
+    this.prisma.user.update({ where: { id: client.userId }, data: { lastActiveAt: new Date() } }).catch(() => {});
+  }
+
+  async handleDisconnect(client: AuthSocket) {
+    this.logger.debug(`Disconnected: ${client.userId}`);
+    this.socketUser.delete(client.id);
+    this.userSocket.delete(client.userId);
+    this.matchmaking.dequeue(client.userId);
+
+    const code = this.userRoom.get(client.userId);
+    if (code) await this.leaveRoom(client, code);
+  }
+
+  // â”€â”€ room:create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('room:create')
+  async onCreate(
+    @ConnectedSocket() c: AuthSocket,
+    @MessageBody() data: { name?: string; mode?: string; isPrivate?: boolean; maxPlayers?: number; difficulty?: string; subject?: string },
+    cb?: Function,
+  ) {
+    try {
+      const room = await this.rooms.create({
+        name:       data.name ?? (data.mode === 'QUIZ_BATTLE' ? 'ðŸ§  Quiz Room' : 'âŒ¨ï¸ Typing Room'),
+        mode:       data.mode ?? 'TYPING_RACE',
+        isPrivate:  !!data.isPrivate,
+        maxPlayers: Math.min(data.maxPlayers ?? 6, 8),
+        hostId:     c.userId,
+        difficulty: data.difficulty ?? 'medium',
+        subject:    data.subject,
+      });
+      await this.rooms.addParticipant(room.id, c.userId, c.id, true);
+      c.join(room.code);
+      this.track(room.code, c.userId);
+      const payload = this.safeRoom(room);
+      cb?.({ room: payload });
+    } catch (e: any) { cb?.({ error: e.message }); }
+  }
+
+  // â”€â”€ room:join â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('room:join')
+  async onJoin(
+    @ConnectedSocket() c: AuthSocket,
+    @MessageBody() data: { code: string },
+    cb?: Function,
+  ) {
+    try {
+      if (!data?.code) throw new Error('Room code required');
+      const room = await this.rooms.findByCode(data.code);
+      if (!room) throw new Error('Room not found');
+      if (['FINISHED', 'DISBANDED'].includes(room.status)) throw new Error('Room is closed');
+      if (room.participants.length >= room.maxPlayers) throw new Error('Room is full');
+
+      const prev = this.userRoom.get(c.userId);
+      if (prev && prev !== room.code) await this.leaveRoom(c, prev);
+
+      await this.rooms.addParticipant(room.id, c.userId, c.id, false);
+      c.join(room.code);
+      this.track(room.code, c.userId);
+
+      // Notify others
+      c.to(room.code).emit('room:player_joined', {
+        userId: c.userId, username: c.username,
+        displayName: c.displayName, avatar: null, level: 1,
+        isHost: false, isReady: false,
+      });
+
+      const updated = await this.rooms.findByCode(room.code);
+      const payload = this.safeRoom(updated!);
+      cb?.({ room: payload });
+    } catch (e: any) { cb?.({ error: e.message }); }
+  }
+
+  // â”€â”€ room:leave â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('room:leave')
+  async onLeave(@ConnectedSocket() c: AuthSocket, _: any, cb?: Function) {
+    const code = this.userRoom.get(c.userId);
+    if (code) await this.leaveRoom(c, code);
+    cb?.({ success: true });
+  }
+
+  // â”€â”€ room:ready â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('room:ready')
+  async onReady(@ConnectedSocket() c: AuthSocket, cb?: Function) {
+    const code = this.userRoom.get(c.userId);
+    if (!code) return cb?.({ error: 'Not in a room' });
+    const room = await this.rooms.findByCode(code);
+    if (!room) return cb?.({ error: 'Room not found' });
+    const p = room.participants.find((x: any) => x.userId === c.userId);
+    if (!p) return cb?.({ error: 'Not a participant' });
+    const newReady = !(p as any).isReady;
+    await this.rooms.setReady(room.id, c.userId, newReady);
+    this.server.to(code).emit('room:player_ready', { userId: c.userId, isReady: newReady });
+    cb?.({ success: true, isReady: newReady });
+  }
+
+  // â”€â”€ room:start â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('room:start')
+  async onStart(@ConnectedSocket() c: AuthSocket, cb?: Function) {
+    const code = this.userRoom.get(c.userId);
+    if (!code) return cb?.({ error: 'Not in a room' });
+    const room = await this.rooms.findByCode(code);
+    if (!room) return cb?.({ error: 'Room not found' });
+    if (room.hostId !== c.userId) return cb?.({ error: 'Only the host can start' });
+    if (room.participants.length < room.minPlayers) return cb?.({ error: `Need at least ${room.minPlayers} players` });
+    await this.rooms.updateStatus(room.id, 'STARTING');
+    await this.startCountdown(code, room.id, room.mode, room.difficulty);
+    cb?.({ success: true });
+  }
+
+  // â”€â”€ room:rematch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('room:rematch')
+  async onRematch(@ConnectedSocket() c: AuthSocket, cb?: Function) {
+    const code = this.userRoom.get(c.userId);
+    if (!code) return cb?.({ error: 'Not in a room' });
+    const room = await this.rooms.findByCode(code);
+    if (!room) return cb?.({ error: 'Room not found' });
+    await this.rooms.updateStatus(room.id, 'WAITING');
+    for (const p of room.participants) {
+      if (!(p as any).isHost) await this.rooms.setReady(room.id, (p as any).userId, false);
+    }
+    const updated = await this.rooms.findByCode(code);
+    this.server.to(code).emit('room:updated', this.safeRoom(updated!));
+    cb?.({ success: true });
+  }
+
+  // â”€â”€ typing:progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('typing:progress')
+  onTypingProgress(@ConnectedSocket() c: AuthSocket, @MessageBody() progress: any) {
+    const code = this.userRoom.get(c.userId);
+    if (!code) return;
+    c.to(code).emit('typing:player_progress', { ...progress, userId: c.userId });
+  }
+
+  // â”€â”€ typing:finished â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('typing:finished')
+  async onTypingFinished(
+    @ConnectedSocket() c: AuthSocket,
+    @MessageBody() data: { wpm: number; accuracy: number; errors: number; durationMs: number; textId?: string; keystrokes?: any[] },
+    cb?: Function,
+  ) {
+    const code = this.userRoom.get(c.userId);
+    if (!code) return cb?.({ error: 'Not in a room' });
+
+    // Anti-cheat
+    if (this.typing.detectCheat(data.wpm)) {
+      this.logger.warn(`[AntiCheat] ${c.username} reported ${data.wpm} WPM`);
+      await this.prisma.antiCheatFlag.upsert({
+        where: { id: `flag-${c.userId}` },
+        create: { id: `flag-${c.userId}`, userId: c.userId, reason: `Impossible WPM: ${data.wpm}`, severity: 'high', count: 1 },
+        update: { count: { increment: 1 }, updatedAt: new Date() },
+      }).catch(() => {});
+    }
+
+    if (data.keystrokes?.length) {
+      const cheatCheck = this.typing.analyzeKeystrokes(data.keystrokes);
+      if (cheatCheck.isCheat) {
+        this.logger.warn(`[AntiCheat] ${c.username} keystroke anomaly: ${cheatCheck.reason}`);
+      }
+    }
+
+    const room = await this.rooms.findByCode(code);
+    if (room) {
+      // Save race session
+      await this.prisma.raceSession.create({
+        data: { roomId: room.id, userId: c.userId, mode: room.mode, wpm: data.wpm, accuracy: data.accuracy, errors: data.errors, durationMs: data.durationMs, rank: 1, score: Math.round(data.wpm * (data.accuracy / 100) * 10), isWin: false, xpEarned: 0, coinsEarned: 0 },
+      }).catch(() => {});
+    }
+
+    // Broadcast finish to room
+    c.to(code).emit('typing:player_finished', { userId: c.userId, username: c.username, wpm: data.wpm, accuracy: data.accuracy });
+    cb?.({ success: true });
+  }
+
+  // â”€â”€ quiz:answer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('quiz:answer')
+  onQuizAnswer(
+    @ConnectedSocket() c: AuthSocket,
+    @MessageBody() data: { optionIndex: number; questionId: string; answeredAt: number },
+    cb?: Function,
+  ) {
+    const code = this.userRoom.get(c.userId);
+    if (!code) return cb?.({ error: 'Not in a room' });
+    try {
+      const result = this.quiz.processAnswer(code, c.userId, data.optionIndex, data.questionId);
+      cb?.({ success: true, ...result });
+      if (result.allAnswered) this.doRevealAndAdvance(code);
+    } catch (e: any) { cb?.({ error: e.message }); }
+  }
+
+  // â”€â”€ matchmaking:join â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('matchmaking:join')
+  onMMJoin(@ConnectedSocket() c: AuthSocket, @MessageBody() data: { mode?: string }, cb?: Function) {
+    const mode = data?.mode ?? 'TYPING_RACE';
+    const size = this.matchmaking.enqueue({ userId: c.userId, username: c.username, rating: c.rating ?? 1000, mode, joinedAt: Date.now() });
+    this.server.to(c.id).emit('matchmaking:status', { status: 'searching', queueSize: size });
+    cb?.({ success: true, queueSize: size });
+  }
+
+  // â”€â”€ matchmaking:cancel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('matchmaking:cancel')
+  onMMCancel(@ConnectedSocket() c: AuthSocket, cb?: Function) {
+    this.matchmaking.dequeue(c.userId);
+    c.emit('matchmaking:status', { status: 'cancelled' });
+    cb?.({ success: true });
+  }
+
+  // â”€â”€ chat:send â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  @SubscribeMessage('chat:send')
+  onChat(@ConnectedSocket() c: AuthSocket, @MessageBody() data: { content: string }, cb?: Function) {
+    const code = this.userRoom.get(c.userId);
+    if (!code) return cb?.({ error: 'Not in a room' });
+    if (!data?.content?.trim()) return cb?.({ error: 'Empty message' });
+    const msg = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      userId: c.userId,
+      username: c.displayName ?? c.username,
+      content: data.content.slice(0, 200).trim(),
+      type: 'user' as const,
+      createdAt: new Date().toISOString(),
+    };
+    this.server.to(code).emit('chat:message', msg);
+    cb?.({ success: true });
+  }
+
+  // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  private async leaveRoom(c: AuthSocket, code: string) {
+    const room = await this.rooms.findByCode(code);
+    if (!room) { this.untrack(code, c.userId); return; }
+
+    await this.rooms.removeParticipant(room.id, c.userId);
+    c.leave(code);
+    this.untrack(code, c.userId);
+    c.to(code).emit('room:player_left', { userId: c.userId, username: c.username });
+
+    const remaining = this.roomMembers.get(code);
+    if (!remaining || remaining.size === 0) {
+      await this.rooms.updateStatus(room.id, 'DISBANDED');
+      this.server.to(code).emit('room:disbanded');
+      this.roomMembers.delete(code);
+      this.quiz.clearSession(code);
+      const ct = this.countdownTimers.get(code);
+      if (ct) { clearInterval(ct); this.countdownTimers.delete(code); }
+      const qt = this.quizTimers.get(code);
+      if (qt) { clearTimeout(qt); this.quizTimers.delete(code); }
+    }
+  }
+
+  private async startCountdown(code: string, roomId: string, mode: string, difficulty: string) {
+    let secs = 3;
+    this.server.to(code).emit('room:countdown', { seconds: secs });
+
+    const timer = setInterval(async () => {
+      secs--;
+      if (secs > 0) {
+        this.server.to(code).emit('room:countdown', { seconds: secs });
+      } else {
+        clearInterval(timer);
+        this.countdownTimers.delete(code);
+        await this.startGame(code, roomId, mode, difficulty);
+      }
+    }, 1000);
+
+    this.countdownTimers.set(code, timer);
+  }
+
+  private async startGame(code: string, roomId: string, mode: string, difficulty: string) {
+    await this.rooms.updateStatus(roomId, 'ACTIVE');
+
+    if (mode === 'QUIZ_BATTLE') {
+      await this.startQuizGame(code, roomId, difficulty);
+    } else {
+      const text = await this.typing.getRandomText(difficulty);
+      this.server.to(code).emit('room:game_start', {
+        textContent: (text as any).content,
+        textId:      (text as any).id,
+        startedAt:   Date.now(),
+      });
+    }
+  }
+
+  private async startQuizGame(code: string, roomId: string, difficulty: string) {
+    const room = await this.rooms.findByCode(code);
+    if (!room) return;
+    const members = Array.from(this.roomMembers.get(code) ?? []);
+
+    const questions = await this.quiz.fetchForRoom(QUIZ_QUESTIONS, difficulty);
+    this.quiz.initSession(code, questions, QUIZ_SECONDS, members);
+
+    this.server.to(code).emit('room:game_start', { startedAt: Date.now(), mode: 'QUIZ_BATTLE' });
+    await new Promise(r => setTimeout(r, 800));
+
+    this.server.to(code).emit('quiz:new_question', {
+      question:       { ...questions[0], correctIndex: undefined },
+      questionNumber: 0,
+      totalQuestions: questions.length,
+      startedAt:      Date.now(),
+      timePerRound:   QUIZ_SECONDS,
+    });
+
+    this.scheduleReveal(code, 0);
+  }
+
+  private scheduleReveal(code: string, _idx: number) {
+    const existing = this.quizTimers.get(code);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => this.doRevealAndAdvance(code), QUIZ_SECONDS * 1000);
+    this.quizTimers.set(code, t);
+  }
+
+  private doRevealAndAdvance(code: string) {
+    const existing = this.quizTimers.get(code);
+    if (existing) clearTimeout(existing);
+    const state = this.quiz.getSession(code);
+    if (!state) return;
+
+    try {
+      const reveal = this.quiz.getRevealData(code);
+      this.server.to(code).emit('quiz:answer_revealed', reveal);
+    } catch { /* session gone */ }
+
+    setTimeout(() => {
+      const next = this.quiz.advanceQuestion(code);
+      if (next?.question) {
+        this.server.to(code).emit('quiz:new_question', {
+          question:       { ...next.question, correctIndex: undefined },
+          questionNumber: next.questionNumber,
+          totalQuestions: next.totalQuestions,
+          startedAt:      Date.now(),
+          timePerRound:   QUIZ_SECONDS,
+        });
+        this.scheduleReveal(code, next.questionNumber);
+      } else {
+        this.endQuizGame(code);
+      }
+    }, REVEAL_DELAY + NEXT_DELAY);
+  }
+
+  private async endQuizGame(code: string) {
+    const room = await this.rooms.findByCode(code);
+    if (!room) return;
+
+    const participants = room.participants.map((p: any) => ({
+      userId:   p.userId,
+      username: p.user?.username ?? p.username ?? '',
+      avatar:   p.user?.avatar ?? null,
+    }));
+
+    const results = this.quiz.finalizeSession(code, participants);
+    await this.rooms.updateStatus(room.id, 'FINISHED');
+
+    // Save race sessions for all participants
+    for (const r of results) {
+      await this.prisma.raceSession.create({
+        data: { roomId: room.id, userId: r.userId, mode: 'QUIZ_BATTLE', score: r.score, rank: r.rank, wpm: 0, accuracy: 0, errors: 0, durationMs: r.durationMs, isWin: r.rank === 1, xpEarned: r.xpEarned, coinsEarned: r.coinsEarned },
+      }).catch(() => {});
+
+      // Emit achievements
+      this.emitter.emit('race.finished', { userId: r.userId, wpm: 0, accuracy: 100, isWin: r.rank === 1, mode: 'QUIZ_BATTLE' });
+    }
+
+    this.server.to(code).emit('room:game_end', results);
+  }
+
+  private track(code: string, userId: string) {
+    if (!this.roomMembers.has(code)) this.roomMembers.set(code, new Set());
+    this.roomMembers.get(code)!.add(userId);
+    this.userRoom.set(userId, code);
+  }
+
+  private untrack(code: string, userId: string) {
+    this.roomMembers.get(code)?.delete(userId);
+    if (this.userRoom.get(userId) === code) this.userRoom.delete(userId);
+  }
+
+  private safeRoom(room: any) {
+    return {
+      id: room.id, code: room.code, name: room.name,
+      mode: room.mode, status: room.status,
+      isPrivate: room.isPrivate, maxPlayers: room.maxPlayers, minPlayers: room.minPlayers ?? 2,
+      hostId: room.hostId, difficulty: room.difficulty,
+      participants: (room.participants ?? []).map((p: any) => ({
+        userId:      p.userId,
+        username:    p.user?.username    ?? p.username    ?? '',
+        displayName: p.user?.displayName ?? p.displayName ?? '',
+        avatar:      p.user?.avatar      ?? null,
+        level:       p.user?.level       ?? 1,
+        isHost:  p.isHost,
+        isReady: p.isReady,
+      })),
+      createdAt: room.createdAt,
+    };
+  }
+}
+
+
