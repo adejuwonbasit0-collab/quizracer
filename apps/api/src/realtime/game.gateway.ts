@@ -8,8 +8,8 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { RoomsService } from '../../game/rooms/rooms.service';
-import { TypingService } from '../../game/typing/typing.service';
+import { RoomsService } from '../game/rooms/rooms.service';
+import { TypingService } from '../game/typing/typing.service';
 
 interface AuthSocket extends Socket {
   userId: string;

@@ -4,66 +4,68 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./dev.db"
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  username      String    @unique
-  displayName   String
-  passwordHash  String?
-  avatar        String?
-  bio           String?
-  role          String    @default("USER")
-  level         Int       @default(1)
-  xp            Int       @default(0)
-  xpToNextLevel Int       @default(100)
-  coins         Int       @default(100)
-  gems          Int       @default(0)
-  rating        Int       @default(1000)
-  rank          String    @default("Novice")
-  isPremium     Boolean   @default(false)
-  isBanned      Boolean   @default(false)
-  banReason     String?
-  bannedUntil   DateTime?
-  isVerified    Boolean   @default(false)
-  theme         String    @default("dark")
-  soundEnabled  Boolean   @default(true)
-  emailNotifications Boolean @default(true)
-  streak        Int       @default(0)
-  lastLoginAt   DateTime?
-  lastActiveAt  DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                 String            @id @default(uuid())
+  email              String            @unique
+  username           String            @unique
+  displayName        String
+  passwordHash       String?
+  avatar             String?
+  bio                String?
+  role               String            @default("USER")
+  level              Int               @default(1)
+  xp                 Int               @default(0)
+  xpToNextLevel      Int               @default(100)
+  coins              Int               @default(100)
+  gems               Int               @default(0)
+  rating             Int               @default(1000)
+  rank               String            @default("Novice")
+  isPremium          Boolean           @default(false)
+  isBanned           Boolean           @default(false)
+  banReason          String?
+  bannedUntil        DateTime?
+  isVerified         Boolean           @default(false)
+  theme              String            @default("dark")
+  soundEnabled       Boolean           @default(true)
+  emailNotifications Boolean           @default(true)
+  streak             Int               @default(0)
+  lastLoginAt        DateTime?
+  lastActiveAt       DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
-  stats           UserStats?
-  raceSessions    RaceSession[]
-  achievements    UserAchievement[]
-  roomParticipants RoomParticipant[]
-  notifications   Notification[]
-  inventory       UserInventory[]
-  transactions    Transaction[]
-  xpEvents        XpEvent[]
-  refreshTokens   RefreshToken[]
+  stats             UserStats?
+  raceSessions      RaceSession[]
+  achievements      UserAchievement[]
+  roomParticipants  RoomParticipant[]
+  notifications     Notification[]
+  inventory         UserInventory[]
+  transactions      Transaction[]
+  xpEvents          XpEvent[]
+  refreshTokens     RefreshToken[]
+  antiCheatFlags    AntiCheatFlag[]
+  tournamentEntries TournamentEntry[] // Added back-relation constraint
 
   @@map("users")
 }
 
 model UserStats {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  bestWpm        Int      @default(0)
-  avgWpm         Float    @default(0)
-  avgAccuracy    Float    @default(0)
-  totalGames     Int      @default(0)
-  totalWins      Int      @default(0)
-  totalLosses    Int      @default(0)
-  currentStreak  Int      @default(0)
-  longestStreak  Int      @default(0)
-  totalTypingTime Int     @default(0)
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  bestWpm         Int      @default(0)
+  avgWpm          Float    @default(0)
+  avgAccuracy     Float    @default(0)
+  totalGames      Int      @default(0)
+  totalWins       Int      @default(0)
+  totalLosses     Int      @default(0)
+  currentStreak   Int      @default(0)
+  longestStreak   Int      @default(0)
+  totalTypingTime Int      @default(0)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -71,14 +73,14 @@ model UserStats {
 }
 
 model RefreshToken {
-  id          String   @id @default(uuid())
-  userId      String
-  tokenHash   String   @unique
-  ipAddress   String?
-  deviceInfo  String?
-  isRevoked   Boolean  @default(false)
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String   @unique
+  ipAddress  String?
+  deviceInfo String?
+  isRevoked  Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -88,27 +90,27 @@ model RefreshToken {
 // ─── Rooms ────────────────────────────────────────────────────────────────────
 
 model Room {
-  id            String    @id @default(uuid())
-  code          String    @unique
-  name          String
-  mode          String    @default("TYPING_RACE")
-  status        String    @default("WAITING")
-  isPrivate     Boolean   @default(false)
-  maxPlayers    Int       @default(6)
-  minPlayers    Int       @default(2)
-  hostId        String
-  difficulty    String    @default("medium")
-  subject       String?
-  roundCount    Int       @default(10)
-  timePerRound  Int       @default(20)
-  startedAt     DateTime?
-  finishedAt    DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String            @id @default(uuid())
+  code         String            @unique
+  name         String
+  mode         String            @default("TYPING_RACE")
+  status       String            @default("WAITING")
+  isPrivate    Boolean           @default(false)
+  maxPlayers   Int               @default(6)
+  minPlayers   Int               @default(2)
+  hostId       String
+  difficulty   String            @default("medium")
+  subject      String?
+  roundCount   Int               @default(10)
+  timePerRound Int               @default(20)
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
-  participants  RoomParticipant[]
-  raceSessions  RaceSession[]
-  texts         RoomText[]
+  participants RoomParticipant[]
+  raceSessions RaceSession[]
+  texts        RoomText[]
 
   @@map("rooms")
 }
@@ -132,13 +134,13 @@ model RoomParticipant {
 }
 
 model RoomText {
-  id     String @id @default(uuid())
+  id     String   @id @default(uuid())
   roomId String
   textId String
   usedAt DateTime @default(now())
 
-  room Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  text TypingText  @relation(fields: [textId], references: [id])
+  room Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  text TypingText @relation(fields: [textId], references: [id])
 
   @@map("room_texts")
 }
@@ -166,19 +168,19 @@ model TypingText {
 }
 
 model TypingSession {
-  id              String   @id @default(uuid())
-  raceSessionId   String?
-  userId          String
-  textId          String
-  totalChars      Int
-  typedChars      Int
-  correctChars    Int
-  incorrectChars  Int
-  wpm             Float
-  netWpm          Float
-  accuracy        Float
-  durationMs      Int
-  createdAt       DateTime @default(now())
+  id             String   @id @default(uuid())
+  raceSessionId  String?
+  userId         String
+  textId         String
+  totalChars     Int
+  typedChars     Int
+  correctChars   Int
+  incorrectChars Int
+  wpm            Float
+  netWpm         Float
+  accuracy       Float
+  durationMs     Int
+  createdAt      DateTime @default(now())
 
   text TypingText @relation(fields: [textId], references: [id])
 
@@ -212,21 +214,21 @@ model RaceSession {
 // ─── Quiz ────────────────────────────────────────────────────────────────────
 
 model Question {
-  id           String   @id @default(uuid())
+  id           String        @id @default(uuid())
   text         String
   options      String
   correctIndex Int
   explanation  String?
-  subject      String   @default("general")
-  difficulty   String   @default("medium")
-  tags         String   @default("[]")
+  subject      String        @default("general")
+  difficulty   String        @default("medium")
+  tags         String        @default("[]")
   imageUrl     String?
-  isActive     Boolean  @default(true)
-  timesUsed    Int      @default(0)
-  correctRate  Float    @default(0)
+  isActive     Boolean       @default(true)
+  timesUsed    Int           @default(0)
+  correctRate  Float         @default(0)
   createdBy    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   attempts QuizAttempt[]
 
@@ -250,16 +252,16 @@ model QuizAttempt {
 // ─── Achievements ─────────────────────────────────────────────────────────────
 
 model Achievement {
-  id          String  @id @default(uuid())
-  key         String  @unique
+  id          String            @id @default(uuid())
+  key         String            @unique
   name        String
   description String
   icon        String?
-  rarity      String  @default("common")
-  category    String  @default("general")
-  xpReward    Int     @default(0)
-  coinReward  Int     @default(0)
-  isActive    Boolean @default(true)
+  rarity      String            @default("common")
+  category    String            @default("general")
+  xpReward    Int               @default(0)
+  coinReward  Int               @default(0)
+  isActive    Boolean           @default(true)
 
   users UserAchievement[]
 
@@ -267,10 +269,10 @@ model Achievement {
 }
 
 model UserAchievement {
-  id            String   @id @default(uuid())
+  id            String      @id @default(uuid())
   userId        String
   achievementId String
-  unlockedAt    DateTime @default(now())
+  unlockedAt    DateTime    @default(now())
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   achievement Achievement @relation(fields: [achievementId], references: [id])
@@ -282,20 +284,20 @@ model UserAchievement {
 // ─── Shop ─────────────────────────────────────────────────────────────────────
 
 model ShopItem {
-  id          String   @id @default(uuid())
+  id          String          @id @default(uuid())
   name        String
   description String?
   type        String
-  rarity      String   @default("common")
-  coinPrice   Int      @default(0)
-  gemPrice    Int      @default(0)
+  rarity      String          @default("common")
+  coinPrice   Int             @default(0)
+  gemPrice    Int             @default(0)
   imageUrl    String?
   previewUrl  String?
-  isActive    Boolean  @default(true)
-  isFeatured  Boolean  @default(false)
-  sortOrder   Int      @default(0)
-  metadata    String   @default("{}")
-  createdAt   DateTime @default(now())
+  isActive    Boolean         @default(true)
+  isFeatured  Boolean         @default(false)
+  sortOrder   Int             @default(0)
+  metadata    String          @default("{}")
+  createdAt   DateTime        @default(now())
 
   inventory UserInventory[]
 
@@ -390,5 +392,107 @@ model AntiCheatFlag {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("anti_cheat_flags")
+}
+
+// ─── Site Settings ──────────────────────
+
+model SiteSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  category  String   @default("general")
+  label     String   @default("")
+  type      String   @default("text")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+// ─── Corrected Analytics & Game Models ──────────────────────────────────────────
+
+model GameEvent {
+  id         String   @id @default(uuid())
+  event      String   // Aligned with analytics service queries
+  userId     String
+  sessionId  String
+  properties String?    // Configured with flexible Json structure
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@map("game_events")
+}
+
+model DailyStats {
+  id          String   @id @default(uuid())
+  date        DateTime @unique
+  activeUsers Int      // Added field to eliminate tracking errors
+  metrics     String   @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("daily_stats")
+}
+
+model RankingEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  period    String   // Added composite query target
+  mode      String   // Added composite query target
+  rank      Int
+  wpm       Float    // Formatted type parameters
+  accuracy  Float    // Added field
+  wins      Int      // Added field
+  score     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, period, mode]) // Resolves 'userId_period_mode' validation failures
+  @@map("ranking_entries")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  content   String   // Replaced 'message' to match live room distribution payloads
+  type      String   @default("text")
+  createdAt DateTime @default(now())
+
+  @@map("chat_messages")
+}
+
+// ─── Corrected Tournaments ──────────────────────────────────────────────────
+
+model Tournament {
+  id                   String            @id @default(uuid())
+  name                 String
+  description          String?           // Added field
+  status               String            @default("UPCOMING")
+  startAt              DateTime          // Added field
+  registrationDeadline DateTime?         // Added field
+  maxPlayers           Int               @default(100) // Added field
+  entryFee             Int               @default(0)   // Added field
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  entries              TournamentEntry[]
+
+  @@map("tournaments")
+}
+
+model TournamentEntry {
+  id           String     @id @default(uuid())
+  tournamentId String
+  userId       String
+  seedRating   Int        @default(1000) // Added field
+  score        Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade) // Linked structural reference
+
+  @@unique([tournamentId, userId])
+  @@map("tournament_entries")
 }

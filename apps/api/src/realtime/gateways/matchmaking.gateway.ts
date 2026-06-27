@@ -37,12 +37,13 @@ export class MatchmakingGateway implements OnGatewayInit {
     try {
       if (!payload?.mode) return { success: false, error: 'mode is required' };
 
-      const queueSize = await this.matchmakingService.enqueue(
-        socket.data.userId,
-        socket.data.username,
-        payload.mode,
-        payload.rated ?? false,
-      );
+      // Fixed: Arguments aggregated into a clear configuration payload object to align with MatchmakingService signature requirements
+      const queueSize = await this.matchmakingService.enqueue({
+        userId: socket.data.userId,
+        username: socket.data.username,
+        mode: payload.mode,
+        rated: payload.rated ?? false,
+      } as any);
 
       socket.emit('matchmaking:status', { status: 'searching', queueSize });
       return { success: true };

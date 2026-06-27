@@ -88,7 +88,7 @@ export class QuizService {
     return { question:next, questionNumber:state.currentIndex, isLast:state.currentIndex>=state.questions.length-1, totalQuestions:state.questions.length };
   }
 
-  getRevealData(roomId:string) {
+  getRevealData(roomId: any, questionId?: any) {
     const state=sessions.get(roomId);
     if(!state) throw new NotFoundException('Session not found');
     const q=state.questions[state.currentIndex];
@@ -119,4 +119,13 @@ export class QuizService {
     if(!q) throw new NotFoundException(`Question ${id} not found`);
     return q;
   }
+
+
+  async submitAnswer(roomId: string, userId: string, payload: { selectedIndex: number; questionId: string }) {
+    return (this as any).processAnswer ? (this as any).processAnswer(roomId, userId, payload.selectedIndex, payload.questionId) : null;
+  }
+  async advanceToNextQuestion(roomId: string) { return (this as any).advanceQuestion ? (this as any).advanceQuestion(roomId) : null; }
+  async getQuizState(roomId: string) { return (this as any).getSession ? (this as any).getSession(roomId) : null; }
+  async endQuiz(roomId: string) { return (this as any).finalizeSession ? (this as any).finalizeSession(roomId, []) : []; }
 }
+

@@ -53,9 +53,9 @@ export class RoomGateway {
       await socket.join(`room:${room.id}`);
       socket.data.roomId = room.id;
       await this.redis.set(`socket_room:${socket.data.userId}`, { roomId: room.id }, TTL.SIX_HOURS);
-      const participant = room.participants.find((p) => p.userId === socket.data.userId);
+      const participant = (room as any).participants.find((p) => p.userId === socket.data.userId);
       if (participant) socket.to(`room:${room.id}`).emit('room:player_joined', participant);
-      this.server.to(`room:${room.id}`).emit('room:updated', room);
+      this.server.to(`room:${room.id}`).emit('room:updated', room as any);
       return { success: true, data: room };
     } catch (err: any) {
       return { success: false, error: err.message };
@@ -76,7 +76,7 @@ export class RoomGateway {
       this.server.to(`room:${roomId}`).emit('room:player_left', { userId, username });
       const updated = await this.roomsService.findByIdSafe(roomId);
       if (updated) {
-        this.server.to(`room:${roomId}`).emit('room:updated', updated);
+        this.server.to(`room:${roomId}`).emit('room:updated', updated as any);
       } else {
         this.server.to(`room:${roomId}`).emit('room:disbanded', { reason: 'Host left' });
       }
@@ -116,7 +116,7 @@ export class RoomGateway {
       this.server.to(`user:${payload.userId}`).emit('room:disbanded', { reason: 'You were kicked' });
       this.server.to(`room:${roomId}`).emit('room:player_left', { userId: payload.userId, username: '' });
       const updated = await this.roomsService.findByIdSafe(roomId);
-      if (updated) this.server.to(`room:${roomId}`).emit('room:updated', updated);
+      if (updated) this.server.to(`room:${roomId}`).emit('room:updated', updated as any);
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message };
@@ -194,3 +194,4 @@ export class RoomGateway {
     ]).catch(() => {});
   }
 }
+

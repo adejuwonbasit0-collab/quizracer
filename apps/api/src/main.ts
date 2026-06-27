@@ -3,8 +3,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import * as cookieParser from 'cookie-parser';
-import * as compression from 'compression';
+import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -48,7 +48,7 @@ async function bootstrap() {
   if (nodeEnv !== 'production') {
     const doc = new DocumentBuilder()
       .setTitle('QuizRacer API')
-      .setDescription('Multiplayer typing races & quiz battles — REST + WebSocket')
+      .setDescription('Multiplayer typing races & quiz battles � REST + WebSocket')
       .setVersion('2.0')
       .addBearerAuth()
       .addTag('auth', 'Authentication & session management')
@@ -69,9 +69,9 @@ async function bootstrap() {
   }
 
   await app.listen(port, '0.0.0.0');
-  Logger.log(`🚀  QuizRacer API  →  http://localhost:${port}/api/v1`);
-  Logger.log(`📖  Swagger docs   →  http://localhost:${port}/api/docs`);
-  Logger.log(`🌍  Environment    →  ${nodeEnv}`);
+  Logger.log(`??  QuizRacer API  ?  http://localhost:${port}/api/v1`);
+  Logger.log(`??  Swagger docs   ?  http://localhost:${port}/api/docs`);
+  Logger.log(`??  Environment    ?  ${nodeEnv}`);
 }
 
 bootstrap().catch((err) => { console.error('Fatal startup error:', err); process.exit(1); });

@@ -26,7 +26,7 @@ export class AnalyticsService {
   ): Promise<void> {
     try {
       await this.prisma.gameEvent.create({
-        data: { event, userId, sessionId, properties, ipAddress },
+        data: { event, userId, sessionId, properties: properties ? JSON.stringify(properties) : null, ipAddress },
       });
     } catch (err: any) {
       this.logger.warn(`Failed to track event ${event}: ${err.message}`);
@@ -172,21 +172,14 @@ export class AnalyticsService {
 
     await this.prisma.dailyStats.upsert({
       where: { date: yesterday },
-      create: {
-        date: yesterday,
-        activeUsers,
-        newUsers,
-        gamesPlayed,
-        avgWpm: avgWpmResult._avg.wpm ?? 0,
-      },
+      create: { date: yesterday, activeUsers, metrics: JSON.stringify({ newUsers, gamesPlayed, avgWpm: avgWpmResult._avg.wpm ?? 0 }) },
       update: {
-        activeUsers,
-        newUsers,
-        gamesPlayed,
-        avgWpm: avgWpmResult._avg.wpm ?? 0,
-      },
+        activeUsers, metrics: JSON.stringify({ newUsers, gamesPlayed, avgWpm: avgWpmResult._avg.wpm ?? 0 }) },
     });
 
     this.logger.log(`Daily snapshot: ${activeUsers} active, ${gamesPlayed} games`);
   }
 }
+
+
+

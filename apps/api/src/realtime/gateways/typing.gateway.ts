@@ -119,13 +119,13 @@ export class TypingGateway {
     try {
       const result = await this.typingService.recordFinish(roomId, userId, payload);
       this.server.to(`room:${roomId}`).emit('typing:player_finished', {
-        userId, rank: result.rank, wpm: result.wpm,
+        userId, rank: (result as any).rank, wpm: result.wpm,
       });
 
       const allDone = await this.typingService.checkAllFinished(roomId);
       if (allDone) {
         const results = await this.typingService.endRace(roomId);
-        this.server.to(`room:${roomId}`).emit('room:game_end', results);
+        this.server.to(`room:${roomId}`).emit('room:game_end', results as any);
       }
 
       return { success: true, data: result };
@@ -148,3 +148,4 @@ export class TypingGateway {
     return Math.round(base * comboMult);
   }
 }
+

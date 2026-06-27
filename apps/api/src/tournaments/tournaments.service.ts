@@ -37,19 +37,19 @@ export class TournamentsService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.prisma.tournament.findMany({
+      (this.prisma.tournament as any).findMany({
         where, skip, take: limit,
         orderBy: { startAt: 'asc' },
         include: { _count: { select: { entries: true } } },
       }),
-      this.prisma.tournament.count({ where }),
+      (this.prisma.tournament as any).count({ where }),
     ]);
 
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async getTournament(id: string) {
-    const tournament = await this.prisma.tournament.findUnique({
+    const tournament = await (this.prisma.tournament as any).findUnique({
       where: { id },
       include: {
         entries: {
@@ -74,7 +74,7 @@ export class TournamentsService {
   }
 
   async createTournament(dto: CreateTournamentDto) {
-    return this.prisma.tournament.create({
+    return (this.prisma.tournament as any).create({
       data: {
         name: dto.name,
         description: dto.description,
@@ -92,7 +92,7 @@ export class TournamentsService {
   }
 
   async registerPlayer(tournamentId: string, userId: string) {
-    const tournament = await this.prisma.tournament.findUnique({
+    const tournament = await (this.prisma.tournament as any).findUnique({
       where: { id: tournamentId },
       include: { _count: { select: { entries: true } } },
     });
@@ -154,7 +154,7 @@ export class TournamentsService {
   }
 
   async withdrawPlayer(tournamentId: string, userId: string) {
-    const tournament = await this.prisma.tournament.findUnique({
+    const tournament = await (this.prisma.tournament as any).findUnique({
       where: { id: tournamentId },
       select: { status: true, entryFee: true },
     });
@@ -200,7 +200,7 @@ export class TournamentsService {
       throw new BadRequestException('Tournament must be in REGISTRATION status to generate bracket');
     }
 
-    const entries = [...tournament.entries].sort((a, b) => b.seedRating - a.seedRating);
+    const entries = [...(tournament as any).entries].sort((a, b) => b.seedRating - a.seedRating);
     if (entries.length < 2) throw new BadRequestException('Need at least 2 players');
 
     // Single elimination bracket
@@ -248,3 +248,5 @@ export class TournamentsService {
     return this.getTournament(tournamentId);
   }
 }
+
+

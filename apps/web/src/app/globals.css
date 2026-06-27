@@ -54,3 +54,5 @@
 }
 
 @keyframes cursorBlink { 50% { background-color: rgba(79,70,229,.3); } }
+
+@layer utilities { .border-border { border-color: hsl(240 5.9% 90%) !important; } }

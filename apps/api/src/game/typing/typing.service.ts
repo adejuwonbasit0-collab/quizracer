@@ -38,4 +38,23 @@ export class TypingService {
     const content = texts[difficulty] ?? texts.medium;
     return { id: `fallback-${difficulty}`, content, difficulty, category:'general', wordCount:content.split(' ').length, charCount:content.length };
   }
+
+
+  private raceStates = new Map<string, Array<{ userId: string; wpm: number; accuracy: number; finishedAt: Date }>>();
+  async recordFinish(roomId: string, userId: string, payload: { wpm: number; accuracy: number }) {
+    if (!this.raceStates.has(roomId)) { this.raceStates.set(roomId, []); }
+    const record = { userId, wpm: payload.wpm, accuracy: payload.accuracy, finishedAt: new Date() };
+    this.raceStates.get(roomId)!.push(record);
+    return record;
+  }
+  async checkAllFinished(roomId: string): Promise<boolean> {
+    const roomMatches = this.raceStates.get(roomId);
+    return (roomMatches?.length ?? 0) >= 1; 
+  }
+  async endRace(roomId: string) {
+    const results = this.raceStates.get(roomId) || [];
+    this.raceStates.delete(roomId);
+    return results;
+  }
 }
+

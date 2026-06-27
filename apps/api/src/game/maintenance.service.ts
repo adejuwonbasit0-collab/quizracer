@@ -73,12 +73,10 @@ export class GameMaintenanceService {
   // ── Clean up stale socket_room keys for offline users ─────────
   @Cron(CronExpression.EVERY_HOUR)
   async cleanStaleSocketRoomKeys(): Promise<void> {
-    // Get all socket_room keys
     const keys = await this.redis.getClient().keys('socket_room:*');
     let cleaned = 0;
     for (const key of keys) {
       const userId = key.replace('socket_room:', '');
-      // Use consistent online:user: prefix (matches RealtimeGateway and SocketStateService)
       const isOnline = await this.redis.exists(`online:user:${userId}`);
       if (!isOnline) {
         await this.redis.del(key);
@@ -93,8 +91,8 @@ export class GameMaintenanceService {
   // ── Refresh leaderboard daily stats snapshot ──────────────────
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async archiveDailyRankings(): Promise<void> {
-    // Snapshot current top 1000 WPMs into ranking_entries table
-    const topPlayers = await this.prisma.raceSession.groupBy({
+    // Typecast selection configuration block to 'any' to split up recursive TS2615 compiler chains
+    const topPlayers = await (this.prisma.raceSession as any).groupBy({
       by: ['userId'],
       _avg: { wpm: true, accuracy: true },
       _sum:  { isWin: true },
@@ -102,7 +100,7 @@ export class GameMaintenanceService {
       where: { wpm: { gt: 0 } },
       orderBy: { _avg: { wpm: 'desc' } },
       take: 1000,
-    });
+    } as any);
 
     // Upsert ranking_entries for all_time period
     for (let i = 0; i < topPlayers.length; i++) {

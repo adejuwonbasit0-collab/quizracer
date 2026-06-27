@@ -6,7 +6,9 @@ import { nanoid } from 'nanoid';
 export class RoomsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: { name:string; mode:string; isPrivate:boolean; maxPlayers:number; hostId:string; difficulty?:string; subject?:string }) {
+  async create(dataOrHostId: any, dto?: any) {
+    if (typeof dataOrHostId === 'string') { dataOrHostId = { name: dto?.name || 'Room', mode: dto?.mode || 'TYPING', isPrivate: dto?.isPrivate ?? false, maxPlayers: dto?.maxPlayers ?? 4, hostId: dataOrHostId, difficulty: dto?.difficulty, subject: dto?.subject }; }
+    const data = dataOrHostId;
     const code = nanoid(6).toUpperCase();
     return this.prisma.room.create({
       data: { code, name:data.name, mode:data.mode, isPrivate:data.isPrivate, maxPlayers:data.maxPlayers, hostId:data.hostId, difficulty:data.difficulty??'medium', subject:data.subject, status:'WAITING' },
@@ -48,4 +50,41 @@ export class RoomsService {
   async updateStatus(roomId:string, status:string) {
     return this.prisma.room.update({ where: { id:roomId }, data: { status, ...(status==='ACTIVE'?{startedAt:new Date()}:{}), ...(status==='FINISHED'?{finishedAt:new Date()}:{}) } });
   }
+
+
+  async join(code: string, userId: string) {
+    const room = await this.findByCode(code);
+    if (!room) throw new Error('Room not found');
+    return this.addParticipant(room.id, userId, '');
+  }
+  async leave(roomId: string, userId: string) { return this.removeParticipant(roomId, userId); }
+  async findByIdSafe(roomId: string) { return this.prisma.room.findUnique({ where: { id: roomId }, include: { participants: true } }); }
+  async toggleReady(roomId: string, userId: string) {
+    const room = await this.findByIdSafe(roomId);
+    const participant = room?.participants.find(p => p.userId === userId);
+    const nextReadyState = !participant?.isReady;
+    await this.setReady(roomId, userId, nextReadyState);
+    return nextReadyState;
+  }
+  async canStart(roomId: string): Promise<boolean> {
+    const room = await this.findByIdSafe(roomId);
+    if (!room || room.participants.length < 1) return false;
+    return room.participants.every(p => p.isReady);
+  }
+  async kick(roomId: string, hostId: string, targetUserId: string) {
+    const room = await this.findByIdSafe(roomId);
+    if (room?.hostId !== hostId) throw new Error('Unauthorized');
+    return this.removeParticipant(roomId, targetUserId);
+  }
+  async spectate(code: string, userId: string) { return this.findByCode(code); }
+  async setStatus(roomId: string, status: string) { return this.updateStatus(roomId, status); }
+  async getRoomMode(roomId: string): Promise<string> {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+    return room?.mode || 'TYPING';
+  }
+  async buildInitialGameState(roomId: string) {
+    const room = await this.findByIdSafe(roomId);
+    return { roomId, status: 'ACTIVE', mode: room?.mode || 'TYPING', players: room?.participants.map(p => ({ userId: p.userId, progress: 0 })) || [] };
+  }
 }
+
